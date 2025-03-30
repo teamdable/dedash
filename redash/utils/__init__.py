@@ -9,12 +9,11 @@ import json
 import os
 import random
 import re
-import sys
 import uuid
 
+import orjson
 import pystache
 import pytz
-import sqlparse
 from flask import current_app
 from funcy import select_values
 from sqlalchemy.orm.query import Query
@@ -110,7 +109,7 @@ class JSONEncoder(json.JSONEncoder):
         elif isinstance(o, bytes):
             result = binascii.hexlify(o).decode()
         else:
-            result = super().default(o)
+            result = o  # Pass object as it is to orjson.dumps
         return result
 
 
@@ -121,14 +120,23 @@ def json_loads(data, *args, **kwargs):
 
 
 def json_dumps(data, *args, **kwargs):
-    """A custom JSON dumping function which passes all parameters to the
-    json.dumps function."""
-    kwargs.setdefault("cls", JSONEncoder)
-    kwargs.setdefault("ensure_ascii", False)
-    # Float value nan or inf in Python should be render to None or null in json.
-    # Using allow_nan = True will make Python render nan as NaN, leading to parse error in front-end
-    kwargs.setdefault("allow_nan", False)
-    return json.dumps(data, *args, **kwargs)
+    """A custom JSON dump function which uses orjson for better performance."""
+
+    # Map common json.dumps kwargs to orjson options
+    options = orjson.OPT_SERIALIZE_NUMPY | orjson.OPT_NON_STR_KEYS | orjson.OPT_UTC_Z
+    if kwargs.get("indent") == 2:
+        options |= orjson.OPT_INDENT_2
+
+    if kwargs.get("sort_keys"):
+        options |= orjson.OPT_SORT_KEYS
+
+    # orjson always uses compact separators (no equivalent to json.dumps(separators=...))
+    # orjson doesn't support skipkeys – invalid keys raise TypeError
+
+    try:
+        return orjson.dumps(data, default=JSONEncoder().default, option=options).decode('utf-8')
+    except orjson.JSONEncodeError as e:
+        raise TypeError(f"Object not serializable: {e}")
 
 
 def mustache_render(template, context=None, **kwargs):
