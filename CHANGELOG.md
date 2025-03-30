@@ -1,5 +1,9 @@
 # Change Log
 
+## v25.1.1 - 2024-07-10
+
+This release includes minor bug fixes and improvements.
+
 ## V10.1.0 - 2021-11-23
 
 This release includes patches for three security vulnerabilities:
@@ -54,22 +58,22 @@ worker:
 Following that, force a recreation of your containers with `docker-compose up --force-recreate --build` and you should be good to go.
 ### UX
 - Redash now uses a vertical navbar
-- Dashboard list now includes “My Dashboards” filter
+- Dashboard list now includes "My Dashboards" filter
 - Dashboard parameters can now be re-ordered
 - Queries can now be executed with Shift + Enter on all platforms.
 - Added New Dashboard/Query/Alert buttons to corresponding list pages
 - Dashboard text widgets now prompt to confirm before closing the text editor
 - A plus sign is now shown between tags used for search
-- On the queries list view “My Queries” has moved above “Archived”
+- On the queries list view "My Queries" has moved above "Archived"
 - Improved behavior for filtering by tags in list views
-- When a user’s session expires for inactivity, they are prompted to log-in with a pop-up so they don’t lose their place in the app
+- When a user's session expires for inactivity, they are prompted to log-in with a pop-up so they don't lose their place in the app
 - Numerous accessibility changes towards the a11y standard
-- Hide the “Create” menu button if current user doesn’t have permission to any data sources
+- Hide the "Create" menu button if current user doesn't have permission to any data sources
 
 ### Visualizations
 - Feature: Added support for horizontal box plots
 - Feature: Added support for horizontal bar charts
-- Feature: Added “Reverse” option for Chart visualization legend
+- Feature: Added "Reverse" option for Chart visualization legend
 - Feature: Added option to align Chart Y-axes at zero
 - Feature: The table visualization header is now fixed when scrolling
 - Feature: Added USA map to choropleth visualization
@@ -114,11 +118,11 @@ Following that, force a recreation of your containers with `docker-compose up --
 - Fix: numerical comparisons failed if value from query was a string
 
 ### Parameters
-- Added “Last 12 months” option for dynamic date ranges
+- Added "Last 12 months" option for dynamic date ranges
 
 ### Bug Fixes
 - Fix: Private addresses were not allowed even when enforcing was disabled 
-- Fix: Python query runner wasn’t updated for Python 3
+- Fix: Python query runner wasn't updated for Python 3
 - Fix: Sorting queries by schedule returned the wrong order
 - Fix: Counter visualization was enormous in some cases
 - Fix: Dashboard URL will now change when the dashboard title changes
@@ -126,8 +130,8 @@ Following that, force a recreation of your containers with `docker-compose up --
 - Fix: Create link on data sources page was broken
 - Fix: Queries could be reassigned to read-only data sources
 - Fix: Multi-select dropdown was very slow if there were 1k+ options
-- Fix: Search Input couldn’t be focused or updated while editing a dashboard
-- Fix: The CLI command for “status” did not work
+- Fix: Search Input couldn't be focused or updated while editing a dashboard
+- Fix: The CLI command for "status" did not work
 - Fix: The dashboard list screen displayed too few items under certain pagination configurations
 
 ### Other
@@ -138,7 +142,7 @@ Following that, force a recreation of your containers with `docker-compose up --
 - Adds new component for adding extra actions to the query and dashboard pages
 - Non-admins with at least view_only permission on a dashboard can now make GET requests to the data source resource
 - Added a BLOCKED_DOMAINS setting to prevent sign-ups from emails at specific domains
-- Added a rate limit to the “forgot password” page
+- Added a rate limit to the "forgot password" page
 - RQ workers will now shutdown gracefully for known error codes
 - Scheduled execution failure counter now resets following a successful ad hoc execution
 - Redash now deletes locks for cancelled queries
@@ -210,7 +214,7 @@ Following that, force a recreation of your containers with `docker-compose up --
 - Change: Pie chart labels maintain contrast against lighter slices.
 - Fix: Chart series switched places when picking Y axis.
 - Fix: Third column was not selectable for Bubble and Heatmap charts.
-- Fix: On the counter visualizations, the “count rows” option showed an empty string instead of 0.
+- Fix: On the counter visualizations, the "count rows" option showed an empty string instead of 0.
 - Fix: Table visualization with column named "children" rendered +/- buttons.
 - Fix: Sankey visualization now correctly occupies all available area even with fewer stages.
 - Fix: Pie chart ignores series labels.
@@ -221,7 +225,7 @@ Following that, force a recreation of your containers with `docker-compose up --
 - Athena:
   - Added the option to specify a base cost in settings, displaying a price for each query when executed.
 - BigQuery:
-  - Fix: large jobs continued running after the user clicked “Cancel” query execution.
+  - Fix: large jobs continued running after the user clicked "Cancel" query execution.
 - Cassandra:
   - Updated driver to 3.21.0 which dramatically reduces Docker build times.
   - SSL options are now available.
@@ -249,7 +253,7 @@ Following that, force a recreation of your containers with `docker-compose up --
   - Fix: Allow Redash to load collections in all workspaces.
 - Snowflake:
   - You can now refresh the snowflake schema without waking the cluster.
-  - Added support for all of Snowflake’s datetime types. Otherwise certain timestamps would only appear as strings in the front-end.
+  - Added support for all of Snowflake's datetime types. Otherwise certain timestamps would only appear as strings in the front-end.
 - TreasureData:
   - Fix: API calls would fail when setting a non-default region.
 
@@ -268,14 +272,14 @@ Following that, force a recreation of your containers with `docker-compose up --
 - Fix: Alembic migration schema was preventing v4 users from upgrading. In v5 we started encrypting data source credentials in the database.
 - Fix: System admin dashboard would not show correct database size if non-default name was used.
 - Fix: refresh_queries job would break if any query had a bad schedule object.
-- Fix: Orgs with LDAP enabled couldn’t disable password login.
+- Fix: Orgs with LDAP enabled couldn't disable password login.
 - Fix: SSL mode was sometimes sent as an empty string to the database instead of omitted entirely.
 - Fix: When creating new Map visualization with clustering disabled, map would crash on save.
-- Fix: It was possible on the New Query page to click “Save” multiple times, causing multiple new query records to be created.
+- Fix: It was possible on the New Query page to click "Save" multiple times, causing multiple new query records to be created.
 - Fix: Visualization render errors on a dashboard would crash the entire page.
-- Fix: A scheduled execution failure would modify the query’s “updated_at” timestamp.
+- Fix: A scheduled execution failure would modify the query's "updated_at" timestamp.
 - Fix: Parameter UI would wrap awkwardly during some drag operations.
-- Fix: In dashboard edit mode, users couldn’t modify widgets.
+- Fix: In dashboard edit mode, users couldn't modify widgets.
 - Fix: Frontend error when parsing a NaN float.
 
 ### Other
@@ -434,14 +438,14 @@ You can now open the [Knowledge Base](https://redash.io/help) inside the applica
 
 ### Parameters
 
-- **Dashboard Parameters**: We improved the flow of adding queries with parameters to dashboards and now give you full control over how parameters are mapped. You no longer have to make sure all parameters have the same name or use the `Global` checkbox. We also added new options, like keeping the parameter local to the widget or setting a static value. [Read more in our Knowledge Base →](https://redash.io/help/user-guide/querying/query-parameters#Parameter-Mapping-on-Dashboards)
+- **Dashboard Parameters**: We improved the flow of adding queries with parameters to dashboards and now give you full control over how parameters are mapped. You no longer have to make sure all parameters have the same name or use the `Global` checkbox. We also added new options, like keeping the parameter local to the widget or setting a static value. [Read more in our Knowledge Base →](https://redash.io/help/user-guide/querying/query-parameters#Parameter-Mapping-on-Dashboards)
 - We added server side validation of parameter values for all parameter types, except for parameters of `text` type. All validated parameter types are considered safe. When a query is using safe parameters (or no parameters at all), View Only users can refresh it.
 - Refreshing safe queries is done using the new results API endpoint, which takes only a query ID (and optionally parameter values) and does not need the query text.
 
 ### Query Editor Improvements
 
 - Run only the highlighted query text: hit Execute after highlighting a portion of your query and only the selected portion will be sent to the database. This is useful for testing sub-SELECT statements and CTE's.
-- Improved auto complete: add a dot . after a table name in the query editor and auto complete will only suggest columns on that table.
+- Improved auto complete: add a dot . after a table name in the query editor and auto complete will only suggest columns on that table.
 - Autosave parameter configuration changes.
 - YAML syntax support (for data sources like Yandex Metrica).
 
@@ -621,7 +625,7 @@ This release had contributions from 38 people: @arikfr, @kravets-levko, @jezdez,
 - #2854 Widget titles are no longer rendered wrong on public dashboards. @kravets-levko
 - #2318 Removed redundant exception handling in data sources since that's handled in the query backend. @jezdez
 - #2886 Fix Javascript build that broke because registerAll tried to run EditInPlace component. @arikfr
-- #2911 Don’t show “Add to dashboard” in dropdown to unsaved queries. @jezdez
+- #2911 Don't show "Add to dashboard" in dropdown to unsaved queries. @jezdez
 - #2916 Fix export query results output file name. @gabrieldutra
 - #2917 Fix output file name not changing after rename query. @gabrieldutra
 - #2868 Address edge case when retrieving Glue schemas for Athena data source. @kadrach
