@@ -1,8 +1,12 @@
 # Change Log
 
-## v25.1.1 - 2024-07-10
+## v25.1.2 - 2025-04-11
 
-This release includes minor bug fixes and improvements.
+This release includes Trino data source query annotation.
+
+## v25.1.1 - 2025-03-30
+
+This release includes orjson for json serialization.
 
 ## V10.1.0 - 2021-11-23
 
@@ -121,7 +125,7 @@ Following that, force a recreation of your containers with `docker-compose up --
 - Added "Last 12 months" option for dynamic date ranges
 
 ### Bug Fixes
-- Fix: Private addresses were not allowed even when enforcing was disabled 
+- Fix: Private addresses were not allowed even when enforcing was disabled
 - Fix: Python query runner wasn't updated for Python 3
 - Fix: Sorting queries by schedule returned the wrong order
 - Fix: Counter visualization was enormous in some cases
