@@ -9,9 +9,9 @@ wtforms==2.2.1
 Flask-RESTful==0.3.7
 Flask-Login==0.4.1
 Flask-OAuthLib==0.9.5
-importlib-metadata==1.7.0
+importlib-metadata==4.8.1
 # pin this until https://github.com/lepture/flask-oauthlib/pull/388 is released
-requests-oauthlib>=0.6.2,<1.2.0
+requests-oauthlib==1.1.0
 Flask-SQLAlchemy==2.4.1
 Flask-Migrate==2.5.2
 flask-mail==0.9.1
@@ -23,7 +23,7 @@ aniso8601==8.0.0
 blinker==1.4
 psycopg2==2.8.3
 python-dateutil==2.8.0
-pytz>=2019.3
+pytz==2021.1
 PyYAML==5.1.2
 redis==3.5.0
 requests==2.21.0
@@ -44,7 +44,7 @@ RestrictedPython==5.0
 pysaml2==6.1.0
 pycrypto==2.6.1
 funcy==1.13
-sentry-sdk>=0.14.3,<0.15.0
+sentry-sdk==0.14.4
 semver==2.8.1
 xlsxwriter==1.2.2
 pystache==0.5.4
@@ -56,11 +56,11 @@ ua-parser==0.8.0
 user-agents==2.0
 maxminddb-geolite2==2018.703
 pypd==1.1.0
-disposable-email-domains>=0.0.52
+disposable-email-domains==0.0.65
 gevent==1.4.0
 sshtunnel==0.1.5
 supervisor==4.1.0
-supervisor_checks==0.8.1
+supervisor-checks==0.8.1
 werkzeug==0.16.1
 # Install the dependencies of the bin/bundle-extensions script here.
 # It has its own requirements file to simplify the frontend client build process
@@ -68,5 +68,22 @@ werkzeug==0.16.1
 # Uncomment the requirement for ldap3 if using ldap.
 # It is not included by default because of the GPL license conflict.
 # ldap3==2.2.4
+
+# Added from frozen list (originally not in this file or other files)
+# These might be better placed in requirements_all_ds.txt or requirements_dev.txt depending on their use
+alembic==1.7.3
+asn1crypto==1.4.0
+attrs==21.2.0
+backports.zoneinfo==0.2.1
+cffi==1.13.2
+chardet==3.0.4
+click==6.7 # Already listed
+docutils==0.15.2
+Jinja2==2.10.3 # Already listed
+MarkupSafe==1.1.1 # Already listed
+pycparser==2.20
+six==1.16.0
+Werkzeug==0.16.1 # Already listed
+WTForms==2.2.1 # Already listed
 
 

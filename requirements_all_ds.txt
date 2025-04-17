@@ -14,29 +14,94 @@ dql==0.5.26
 dynamo3==0.4.10
 boto3==1.10.50
 botocore==1.13.50
-sasl>=0.1.3
-thrift>=0.8.0
-thrift_sasl>=0.1.0
+sasl==0.3.1
+thrift==0.15.0
+thrift-sasl==0.4.3
 cassandra-driver==3.21.0
 memsql==3.0.0
-atsd_client==3.0.5
-simple_salesforce==0.74.3
-PyAthena>=1.5.0
+atsd-client==3.0.5
+simple-salesforce==0.74.3
+pyathena==2.3.0
 pymapd==0.19.0
-qds-sdk>=1.9.6
-ibm-db>=2.0.9
+qds-sdk==1.16.1
+ibm-db==3.0.4
 pydruid==0.5.7
 requests_aws_sign==0.1.5
 snowflake-connector-python==2.1.3
 phoenixdb==0.7
 # certifi is needed to support MongoDB and SSL:
-certifi>=2019.9.11
+certifi==2021.5.30
 pydgraph==2.0.2
 azure-kusto-data==0.0.35
 pyexasol==0.12.0
 python-rapidjson==0.8.0
 pyodbc==4.0.28
-trino~=0.305
+trino==0.306.0
 cmem-cmempy==21.2.3
 xlrd==2.0.1
 openpyxl==3.0.7
+
+# Added from frozen list (originally not in this file)
+# Note: These might be better placed in requirements.txt or requirements_dev.txt depending on their use
+adal==1.2.7
+azure-common==1.1.27
+azure-storage-blob==2.1.0
+azure-storage-common==2.1.0
+bcrypt==3.2.0
+bitarray==2.3.4
+cachetools==4.2.4
+charset-normalizer==2.0.6
+cryptography==2.8 # Already in requirements.txt, specified here too?
+decorator==5.1.0
+defusedxml==0.7.1
+dnspython==1.16.0
+et-xmlfile==1.1.0
+future==0.18.2
+geomet==0.1.2
+google-auth==2.2.1
+google-auth-httplib2==0.1.0
+grpcio==1.41.0
+idna==2.8
+ijson==2.6.1
+importlib-metadata==4.8.1 # Already in requirements.txt
+inflection==0.5.1
+isodate==0.6.0
+jmespath==0.10.0
+limits==1.5.1
+Mako==1.1.5 # Already in requirements.txt (via Flask-Migrate)
+msgpack==1.0.2
+numpy==1.21.2
+oauthlib==2.1.0 # Already in requirements.txt (via requests-oauthlib)
+oscrypto==1.2.1
+packaging==21.0
+pandas==1.3.3
+paramiko==2.7.2
+ply==3.11
+psutil==5.8.0
+pure-sasl==0.6.2
+pyarrow==0.13.0
+pyasn1==0.4.8 # Already in requirements.txt (via pysaml2)
+pyasn1-modules==0.2.8 # Already in requirements.txt (via pysaml2)
+pycryptodomex==3.10.4
+PyHive==0.6.1 # Already listed above
+PyJWT==1.7.1 # Already in requirements.txt
+PyNaCl==1.4.0
+pyparsing==2.3.0 # Already in requirements.txt
+pyrsistent==0.18.0
+pytz==2021.1 # Already in requirements.txt
+rbc-project==0.6.0
+rdflib==6.0.1
+rsa==4.7.2
+s3transfer==0.2.1
+sentry-sdk==0.14.4 # Already in requirements.txt
+six==1.16.0
+SQLAlchemy-Utils==0.34.2 # Already in requirements.txt
+tenacity==8.0.1
+thriftpy2==0.4.14
+typing-extensions==3.10.0.2
+tzlocal==3.0
+urllib3==1.24.3
+validators==0.18.2
+websocket-client==1.2.1
+Wraptor==0.7.0
+zipp==3.6.0 # Already in requirements.txt (via importlib-metadata)
