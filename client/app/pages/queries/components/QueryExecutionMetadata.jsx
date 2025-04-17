@@ -24,6 +24,27 @@ export default function QueryExecutionMetadata({
   const queryResultData = useQueryResultData(queryResult);
   const openAddToDashboardDialog = useAddToDashboardDialog(query);
   const openEmbedDialog = useEmbedDialog(query);
+
+  const dataScanned = queryResultData.metadata?.data_scanned;
+  let queryCostDisplay = null;
+
+  if (dataScanned && dataScanned > 0) {
+    const bytesPerTB = 1024 ** 4;
+    const costPerTBUSD = 5;
+    const krwPerUSD = 1400;
+    const overheadMultiplier = 1.1;
+
+    const costUSD = (dataScanned / bytesPerTB) * costPerTBUSD * overheadMultiplier;
+    const costKRW = costUSD * krwPerUSD;
+
+    const formattedUSD = `$${costUSD.toFixed(2)}`;
+    const formattedKRW = (typeof Intl !== 'undefined' && Intl.NumberFormat)
+      ? new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW', maximumFractionDigits: 0 }).format(costKRW)
+      : `₩${Math.round(costKRW).toLocaleString()}`;
+
+    queryCostDisplay = `${formattedUSD} (${formattedKRW})`;
+  }
+
   return (
     <div className="query-execution-metadata">
       <span className="m-r-5">
@@ -67,10 +88,10 @@ export default function QueryExecutionMetadata({
           )}
           {isQueryExecuting && <span>Running&hellip;</span>}
         </span>
-        {queryResultData.metadata.data_scanned && (
+        {queryCostDisplay && (
           <span className="m-l-5">
-            Data Scanned
-            <strong>{prettySize(queryResultData.metadata.data_scanned)}</strong>
+            Query Cost{' '}
+            <strong>{queryCostDisplay}</strong>
           </span>
         )}
       </span>

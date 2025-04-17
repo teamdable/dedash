@@ -1,4 +1,4 @@
-FROM node:12 AS frontend-builder
+FROM node:12 as frontend-builder
 
 # Controls whether to build the frontend assets
 ARG skip_frontend_build
@@ -22,8 +22,6 @@ RUN if [ "x$skip_frontend_build" = "x" ] ; then npm ci --unsafe-perm; fi
 COPY --chown=redash client /frontend/client
 COPY --chown=redash webpack.config.js /frontend/
 RUN if [ "x$skip_frontend_build" = "x" ] ; then npm run build; else mkdir -p /frontend/client/dist && touch /frontend/client/dist/multi_org.html && touch /frontend/client/dist/index.html; fi
-
-FROM redash/redash:10.0.0.b50363 AS frontend-dist
 
 FROM python:3.7-slim-buster
 
@@ -97,8 +95,7 @@ COPY requirements.txt ./
 RUN pip install -r requirements.txt
 
 COPY . /app
-COPY --from=frontend-dist /app/client/dist /app/client/dist
-#COPY --from=frontend-builder /frontend/client/dist /app/client/dist
+COPY --from=frontend-builder /frontend/client/dist /app/client/dist
 RUN chown -R redash /app
 USER redash
 
