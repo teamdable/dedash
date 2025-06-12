@@ -1,5 +1,6 @@
-import subprocess
+import redis
 import logging
+from datetime import datetime, timedelta
 
 from flask import request
 from flask_restful import Resource
@@ -14,55 +15,61 @@ class TrinoScaleoutResource(BaseResource):
     @require_permission("admin")
     def post(self):
         """
-        Trino 클러스터 Scale-out 요청을 Redis CLI를 통해 전송합니다.
+        Trino 클러스터 Scale-out 요청을 Redis에 전송합니다.
         """
         try:
-            # Redis CLI를 통해 Trino Scale-out 명령 전송
-            # 실제 환경에 맞게 Redis 호스트, 포트, 명령어를 수정해야 합니다
-            redis_command = [
-                "redis-cli", 
-                "-h", "localhost",  # Redis 호스트 (환경에 맞게 수정)
-                "-p", "6379",       # Redis 포트 (환경에 맞게 수정)
-                "publish", 
-                "trino-scaleout",   # Redis 채널명 (환경에 맞게 수정)
-                "scale-out-request" # 메시지 (환경에 맞게 수정)
-            ]
+            # 요청 파라미터 파싱 (기본값 설정)
+            args = request.get_json() or {}
+            scale_size = args.get('scale_size', 20)  # 기본 스케일 크기: 20
+            hours_to_expire = args.get('hours_to_expire', 2)  # 기본 만료 시간: 2시간
             
-            # Redis CLI 명령 실행
-            result = subprocess.run(
-                redis_command,
-                capture_output=True,
-                text=True,
-                timeout=30  # 30초 타임아웃
+            # 만료 시간 계산
+            expire_at = datetime.now() + timedelta(hours=hours_to_expire)
+            expire_at_str = expire_at.strftime("%Y-%m-%dT%H:%M:%S")
+            
+            # Redis 연결
+            r = redis.Redis(
+                host='dable-common-data.mcyjv1.ng.0001.apn2.cache.amazonaws.com',
+                port=6379, 
+                db=0, 
+                decode_responses=True,
+                socket_timeout=10,
+                socket_connect_timeout=10
             )
             
-            if result.returncode == 0:
-                logger.info(f"Trino scale-out request sent successfully. Output: {result.stdout}")
-                return {
-                    "success": True,
-                    "message": "Trino Scale-out 요청이 성공적으로 전송되었습니다.",
-                    "redis_response": result.stdout.strip()
-                }
-            else:
-                logger.error(f"Redis CLI command failed. Error: {result.stderr}")
-                return {
-                    "success": False,
-                    "message": f"Redis CLI 명령 실행 실패: {result.stderr}",
-                    "error_code": result.returncode
-                }, 500
-                
-        except subprocess.TimeoutExpired:
-            logger.error("Redis CLI command timed out")
+            # 스케일 정보를 Redis에 추가
+            value = f"{scale_size}#{expire_at_str}"
+            result = r.lpush("eda-trino-scale-out", value)
+            
+            logger.info(f"Trino scale-out request sent successfully. Scale size: {scale_size}, Expire at: {expire_at_str}")
+            
+            return {
+                "success": True,
+                "message": f"Trino Scale-out 요청이 성공적으로 전송되었습니다. (Scale: {scale_size}, 만료: {expire_at_str})",
+                "scale_size": scale_size,
+                "expire_at": expire_at_str,
+                "redis_list_length": result
+            }
+            
+        except redis.ConnectionError as e:
+            logger.error(f"Redis connection failed: {str(e)}")
             return {
                 "success": False,
-                "message": "Redis CLI 명령이 시간 초과되었습니다."
+                "message": "Redis 서버에 연결할 수 없습니다. 네트워크 상태를 확인해주세요."
             }, 500
             
-        except FileNotFoundError:
-            logger.error("redis-cli command not found")
+        except redis.TimeoutError as e:
+            logger.error(f"Redis operation timed out: {str(e)}")
             return {
                 "success": False,
-                "message": "redis-cli 명령을 찾을 수 없습니다. Redis CLI가 설치되어 있는지 확인해주세요."
+                "message": "Redis 작업이 시간 초과되었습니다."
+            }, 500
+            
+        except redis.RedisError as e:
+            logger.error(f"Redis error occurred: {str(e)}")
+            return {
+                "success": False,
+                "message": f"Redis 오류가 발생했습니다: {str(e)}"
             }, 500
             
         except Exception as e:

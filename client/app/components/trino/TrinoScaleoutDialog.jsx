@@ -6,22 +6,32 @@ import Spin from "antd/lib/spin";
 import Card from "antd/lib/card";
 import Typography from "antd/lib/typography";
 import Space from "antd/lib/space";
+import InputNumber from "antd/lib/input-number";
+import Select from "antd/lib/select";
+import Form from "antd/lib/form";
 import { wrap as wrapDialog, DialogPropType } from "@/components/DialogWrapper";
 import axios from "@/services/axios";
 
 const { Title, Text } = Typography;
+const { Option } = Select;
 
 function TrinoScaleoutDialog({ dialog }) {
   const [scaleoutInProgress, setScaleoutInProgress] = useState(false);
+  const [scaleSize, setScaleSize] = useState(20);
+  const [hoursToExpire, setHoursToExpire] = useState(2);
 
   function handleScaleout() {
     setScaleoutInProgress(true);
     
-    // Redis CLI를 통해 Trino Scale-out 요청 보내기
+    // Redis를 통해 Trino Scale-out 요청 보내기
     axios
-      .post("/api/trino/scaleout")
-      .then(() => {
-        message.success("Trino Scale-out 요청이 성공적으로 전송되었습니다.");
+      .post("/api/trino/scaleout", {
+        scale_size: scaleSize,
+        hours_to_expire: hoursToExpire
+      })
+      .then((response) => {
+        const data = response.data;
+        message.success(`${data.message}`);
         dialog.close();
       })
       .catch((error) => {
@@ -70,9 +80,45 @@ function TrinoScaleoutDialog({ dialog }) {
           <Text>
             대용량 쿼리 실행을 위해 Trino 클러스터를 Scale-out 하시겠습니까?
           </Text>
+          
+          <Form layout="vertical" style={{ marginTop: 16 }}>
+            <Form.Item label="스케일 크기" style={{ marginBottom: 16 }}>
+              <InputNumber
+                min={1}
+                max={100}
+                value={scaleSize}
+                onChange={setScaleSize}
+                style={{ width: '100%' }}
+                disabled={scaleoutInProgress}
+              />
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                확장할 Trino 워커 노드 수를 설정하세요 (기본값: 20)
+              </Text>
+            </Form.Item>
+            
+            <Form.Item label="만료 시간" style={{ marginBottom: 16 }}>
+              <Select
+                value={hoursToExpire}
+                onChange={setHoursToExpire}
+                style={{ width: '100%' }}
+                disabled={scaleoutInProgress}
+              >
+                <Option value={1}>1시간</Option>
+                <Option value={2}>2시간</Option>
+                <Option value={4}>4시간</Option>
+                <Option value={8}>8시간</Option>
+                <Option value={24}>24시간</Option>
+              </Select>
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                Scale-out이 자동으로 해제될 시간을 설정하세요 (기본값: 2시간)
+              </Text>
+            </Form.Item>
+          </Form>
+          
           <Text type="secondary">
             이 작업은 Redis를 통해 Trino 클러스터에 확장 명령을 전송합니다.
           </Text>
+          
           {scaleoutInProgress && (
             <div style={{ textAlign: 'center', padding: '20px 0' }}>
               <Spin size="large" />
