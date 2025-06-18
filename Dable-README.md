@@ -8,7 +8,7 @@ docker push 740271638955.dkr.ecr.ap-northeast-2.amazonaws.com/dable/redash:${IMA
 
 - Front도 빌드
 ```
-IMAGE_TAG="10.0.0.b50363-Dable-1.0.1"
+IMAGE_TAG="10.0.0.b50363-Dable-1.0.2-dev"
 aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin 740271638955.dkr.ecr.ap-northeast-2.amazonaws.com
 docker build -t 740271638955.dkr.ecr.ap-northeast-2.amazonaws.com/dable/redash:${IMAGE_TAG} .
 docker push 740271638955.dkr.ecr.ap-northeast-2.amazonaws.com/dable/redash:${IMAGE_TAG}

@@ -12,22 +12,32 @@ logger = logging.getLogger(__name__)
 
 
 class TrinoScaleoutResource(BaseResource):
-    @require_permission("admin")
+    @require_permission("execute_query")
     def post(self):
         """
-        Trino 클러스터 Scale-out 요청을 Redis에 전송합니다.
+        Send EDA performance boost request to Redis.
         """
         try:
-            # 요청 파라미터 파싱 (기본값 설정)
-            args = request.get_json() or {}
-            scale_size = args.get('scale_size', 20)  # 기본 스케일 크기: 20
-            hours_to_expire = args.get('hours_to_expire', 2)  # 기본 만료 시간: 2시간
+            # Performance level mapping
+            SCALE_MAPPING = {
+                'MAXIMUM': 20,
+                'STANDARD': 10,
+                'LIGHT': 5
+            }
             
-            # 만료 시간 계산
+            # Parse request parameters with defaults
+            args = request.get_json() or {}
+            scale_level = args.get('scale_level', 'LIGHT')  # Default performance level: LIGHT
+            hours_to_expire = args.get('hours_to_expire', 0.5)  # Default duration: 30 minutes
+            
+            # Convert performance level to actual worker count
+            scale_size = SCALE_MAPPING.get(scale_level, SCALE_MAPPING['LIGHT'])
+            
+            # Calculate expiration time
             expire_at = datetime.now() + timedelta(hours=hours_to_expire)
             expire_at_str = expire_at.strftime("%Y-%m-%dT%H:%M:%S")
             
-            # Redis 연결
+            # Redis connection
             r = redis.Redis(
                 host='dable-common-data.mcyjv1.ng.0001.apn2.cache.amazonaws.com',
                 port=6379, 
@@ -37,15 +47,16 @@ class TrinoScaleoutResource(BaseResource):
                 socket_connect_timeout=10
             )
             
-            # 스케일 정보를 Redis에 추가
+            # Add performance boost info to Redis
             value = f"{scale_size}#{expire_at_str}"
             result = r.lpush("eda-trino-scale-out", value)
             
-            logger.info(f"Trino scale-out request sent successfully. Scale size: {scale_size}, Expire at: {expire_at_str}")
+            logger.info(f"EDA performance boost request sent successfully. Performance level: {scale_level}, Worker count: {scale_size}, Expire at: {expire_at_str}")
             
             return {
                 "success": True,
-                "message": f"Trino Scale-out 요청이 성공적으로 전송되었습니다. (Scale: {scale_size}, 만료: {expire_at_str})",
+                "message": f"Performance boost applied successfully! Level: {scale_level}, Workers: {scale_size}, Duration: {hours_to_expire * 60:.0f}min" if hours_to_expire < 1 else f"Performance boost applied successfully! Level: {scale_level}, Workers: {scale_size}, Duration: {hours_to_expire:.0f}h",
+                "scale_level": scale_level,
                 "scale_size": scale_size,
                 "expire_at": expire_at_str,
                 "redis_list_length": result
@@ -55,26 +66,26 @@ class TrinoScaleoutResource(BaseResource):
             logger.error(f"Redis connection failed: {str(e)}")
             return {
                 "success": False,
-                "message": "Redis 서버에 연결할 수 없습니다. 네트워크 상태를 확인해주세요."
+                "message": "Unable to connect to Redis server. Please check network connectivity."
             }, 500
             
         except redis.TimeoutError as e:
             logger.error(f"Redis operation timed out: {str(e)}")
             return {
                 "success": False,
-                "message": "Redis 작업이 시간 초과되었습니다."
+                "message": "Redis operation timed out. Please try again later."
             }, 500
             
         except redis.RedisError as e:
             logger.error(f"Redis error occurred: {str(e)}")
             return {
                 "success": False,
-                "message": f"Redis 오류가 발생했습니다: {str(e)}"
+                "message": f"Redis error: {str(e)}"
             }, 500
             
         except Exception as e:
             logger.error(f"Unexpected error occurred: {str(e)}")
             return {
                 "success": False,
-                "message": f"예상치 못한 오류가 발생했습니다: {str(e)}"
+                "message": f"Unexpected error occurred: {str(e)}"
             }, 500

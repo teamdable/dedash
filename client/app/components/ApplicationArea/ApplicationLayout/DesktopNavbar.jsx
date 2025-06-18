@@ -18,6 +18,7 @@ import PlusOutlinedIcon from "@ant-design/icons/PlusOutlined";
 import QuestionCircleOutlinedIcon from "@ant-design/icons/QuestionCircleOutlined";
 import SettingOutlinedIcon from "@ant-design/icons/SettingOutlined";
 import DatabaseOutlinedIcon from "@ant-design/icons/DatabaseOutlined";
+import RocketOutlinedIcon from "@ant-design/icons/RocketOutlined";
 import VersionInfo from "./VersionInfo";
 
 import "./DesktopNavbar.less";
@@ -110,8 +111,8 @@ export default function DesktopNavbar() {
         )}
         <Menu.Item key="trino">
           <PlainButton onClick={() => TrinoScaleoutDialog.showModal()} data-test="TrinoScaleoutMenuItem">
-            <DatabaseOutlinedIcon aria-label="Trino scale-out button" />
-            <span className="desktop-navbar-label">Trino</span>
+            <RocketOutlinedIcon aria-label="EDA Booster navigation button" />
+            <span className="desktop-navbar-label">EDA Booster</span>
           </PlainButton>
         </Menu.Item>
       </NavbarSection>
