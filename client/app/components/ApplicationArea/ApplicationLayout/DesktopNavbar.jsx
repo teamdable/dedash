@@ -110,10 +110,14 @@ export default function DesktopNavbar() {
           </Menu.Item>
         )}
         <Menu.Item key="trino">
-          <PlainButton onClick={() => TrinoScaleoutDialog.showModal()} data-test="TrinoScaleoutMenuItem">
+          <a
+            onClick={() => TrinoScaleoutDialog.showModal()}
+            data-test="TrinoScaleoutMenuItem"
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer" }}
+          >
             <RocketOutlinedIcon aria-label="EDA Booster navigation button" />
             <span className="desktop-navbar-label">EDA Booster</span>
-          </PlainButton>
+          </a>
         </Menu.Item>
       </NavbarSection>
 

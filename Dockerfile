@@ -10,18 +10,38 @@ RUN useradd -m -d /frontend redash
 USER redash
 
 WORKDIR /frontend
-COPY --chown=redash package.json package-lock.json /frontend/
+
+# Copy package files first for better caching
+COPY --chown=redash package*.json /frontend/
+COPY --chown=redash viz-lib/package*.json /frontend/viz-lib/
+
+# Install dependencies with cache mount for faster rebuilds
+RUN --mount=type=cache,target=/frontend/.npm,uid=1001,gid=1001 \
+    if [ "x$skip_frontend_build" = "x" ] ; then \
+        npm ci --unsafe-perm --prefer-offline --no-audit ; \
+    fi
+
+# Copy viz-lib source and build it
 COPY --chown=redash viz-lib /frontend/viz-lib
+RUN if [ "x$skip_frontend_build" = "x" ] ; then \
+        cd viz-lib && npm ci --unsafe-perm --prefer-offline --no-audit && npm run build:babel ; \
+    fi
+
+# Copy client source and build
+COPY --chown=redash client /frontend/client
+COPY --chown=redash webpack.config.js /frontend/
 
 # Controls whether to instrument code for coverage information
 ARG code_coverage
 ENV BABEL_ENV=${code_coverage:+test}
 
-RUN if [ "x$skip_frontend_build" = "x" ] ; then npm ci --unsafe-perm; fi
-
-COPY --chown=redash client /frontend/client
-COPY --chown=redash webpack.config.js /frontend/
-RUN if [ "x$skip_frontend_build" = "x" ] ; then npm run build; else mkdir -p /frontend/client/dist && touch /frontend/client/dist/multi_org.html && touch /frontend/client/dist/index.html; fi
+RUN if [ "x$skip_frontend_build" = "x" ] ; then \
+        npm run build ; \
+    else \
+        mkdir -p /frontend/client/dist && \
+        touch /frontend/client/dist/multi_org.html && \
+        touch /frontend/client/dist/index.html ; \
+    fi
 
 FROM python:3.7-slim-buster
 
@@ -77,7 +97,7 @@ RUN wget --quiet $databricks_odbc_driver_url -O /tmp/simba_odbc.zip \
 
 WORKDIR /app
 
-# Disalbe PIP Cache and Version Check
+# Disable PIP Cache and Version Check
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 ENV PIP_NO_CACHE_DIR=1
 
