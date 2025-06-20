@@ -26,8 +26,7 @@
     "jest": "TZ=Africa/Khartoum jest",
     "test": "run-s type-check jest",
     "test:watch": "jest --watch",
-    "cypress": "node client/cypress/cypress.js",
-    "postinstall": "(cd viz-lib && npm ci && npm run build:babel)"
+    "cypress": "node client/cypress/cypress.js"
   },
   "repository": {
     "type": "git",

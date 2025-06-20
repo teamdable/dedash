@@ -5,6 +5,7 @@ import Link from "@/components/Link";
 import PlainButton from "@/components/PlainButton";
 import HelpTrigger from "@/components/HelpTrigger";
 import CreateDashboardDialog from "@/components/dashboards/CreateDashboardDialog";
+import TrinoScaleoutDialog from "@/components/trino/TrinoScaleoutDialog";
 import { useCurrentRoute } from "@/components/ApplicationArea/Router";
 import { Auth, currentUser } from "@/services/auth";
 import settingsMenu from "@/services/settingsMenu";
@@ -16,6 +17,8 @@ import AlertOutlinedIcon from "@ant-design/icons/AlertOutlined";
 import PlusOutlinedIcon from "@ant-design/icons/PlusOutlined";
 import QuestionCircleOutlinedIcon from "@ant-design/icons/QuestionCircleOutlined";
 import SettingOutlinedIcon from "@ant-design/icons/SettingOutlined";
+import DatabaseOutlinedIcon from "@ant-design/icons/DatabaseOutlined";
+import RocketOutlinedIcon from "@ant-design/icons/RocketOutlined";
 import VersionInfo from "./VersionInfo";
 
 import "./DesktopNavbar.less";
@@ -106,6 +109,16 @@ export default function DesktopNavbar() {
             </Link>
           </Menu.Item>
         )}
+        <Menu.Item key="trino">
+          <a
+            onClick={() => TrinoScaleoutDialog.showModal()}
+            data-test="TrinoScaleoutMenuItem"
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer" }}
+          >
+            <RocketOutlinedIcon aria-label="EDA Booster navigation button" />
+            <span className="desktop-navbar-label">EDA Booster</span>
+          </a>
+        </Menu.Item>
       </NavbarSection>
 
       <NavbarSection className="desktop-navbar-spacer">
