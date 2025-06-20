@@ -18,13 +18,15 @@ COPY --chown=redash viz-lib/package*.json /frontend/viz-lib/
 # Install dependencies with cache mount for faster rebuilds
 RUN --mount=type=cache,target=/frontend/.npm,uid=1001,gid=1001 \
     if [ "x$skip_frontend_build" = "x" ] ; then \
-        npm ci --unsafe-perm --prefer-offline --no-audit ; \
+        # Update browserslist database first for faster builds \
+        npx update-browserslist-db@latest ; \
+        npm install --unsafe-perm --prefer-offline --no-audit ; \
     fi
 
 # Copy viz-lib source and build it
 COPY --chown=redash viz-lib /frontend/viz-lib
 RUN if [ "x$skip_frontend_build" = "x" ] ; then \
-        cd viz-lib && npm ci --unsafe-perm --prefer-offline --no-audit && npm run build:babel ; \
+        cd viz-lib && npm install --unsafe-perm --prefer-offline --no-audit && npm run build:babel ; \
     fi
 
 # Copy client source and build
@@ -36,6 +38,7 @@ ARG code_coverage
 ENV BABEL_ENV=${code_coverage:+test}
 
 RUN if [ "x$skip_frontend_build" = "x" ] ; then \
+        npx update-browserslist-db@latest ; \
         npm run build ; \
     else \
         mkdir -p /frontend/client/dist && \
