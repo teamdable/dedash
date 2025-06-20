@@ -33,8 +33,9 @@ class TrinoScaleoutResource(BaseResource):
             # Convert performance level to actual worker count
             scale_size = SCALE_MAPPING.get(scale_level, SCALE_MAPPING['LIGHT'])
             
-            # Calculate expiration time
+            # Calculate expiration time (Unix timestamp for sorted set score)
             expire_at = datetime.now() + timedelta(hours=hours_to_expire)
+            expire_timestamp = int(expire_at.timestamp())
             expire_at_str = expire_at.strftime("%Y-%m-%dT%H:%M:%S")
             
             # Redis connection
@@ -47,9 +48,12 @@ class TrinoScaleoutResource(BaseResource):
                 socket_connect_timeout=10
             )
             
-            # Add performance boost info to Redis
-            value = f"{scale_size}#{expire_at_str}"
-            result = r.lpush("eda-trino-scale-out", value)
+            # Add performance boost info to Redis Sorted Set
+            # 사용자 정보와 함께 저장: scale_size#user_email
+            user_email = self.current_user.email if self.current_user else "unknown"
+            value = f"{scale_size}#{user_email}"
+            
+            result = r.zadd("eda-trino-scale-out", {value: expire_timestamp})
             
             logger.info(f"EDA performance boost request sent successfully. Performance level: {scale_level}, Worker count: {scale_size}, Expire at: {expire_at_str}")
             
@@ -59,7 +63,7 @@ class TrinoScaleoutResource(BaseResource):
                 "scale_level": scale_level,
                 "scale_size": scale_size,
                 "expire_at": expire_at_str,
-                "redis_list_length": result
+                "redis_set_count": result
             }
             
         except redis.ConnectionError as e:
