@@ -111,7 +111,8 @@ function QuerySource(props) {
     dataSourceId => {
       if (dataSourceId) {
         try {
-          localStorage.setItem("lastSelectedDataSourceId", dataSourceId);
+          // 가장 마지막에 선택했던 Datasource를 가져오는 저장하는 부분 -> 해당 기능 제외
+          // localStorage.setItem("lastSelectedDataSourceId", dataSourceId);
         } catch (e) {
           // `localStorage.setItem` may throw exception if there are no enough space - in this case it could be ignored
         }
@@ -134,10 +135,11 @@ function QuerySource(props) {
     // choose data source id for new queries
     if (dataSourcesLoaded && queryFlags.isNew) {
       const firstDataSourceId = dataSources.length > 0 ? dataSources[0].id : null;
-      const selectedDataSourceId = parseInt(localStorage.getItem("lastSelectedDataSourceId")) || null;
+      // 가장 마지막에 선택했던 Datasource를 가져오는 부분인데, Athena를 썼던 사람들이 또 Athena를 선택할 가능성이 높아져서 해당 기능을 제외하였음
+      // const selectedDataSourceId = parseInt(localStorage.getItem("lastSelectedDataSourceId")) || null;
 
       handleDataSourceChange(
-        chooseDataSourceId([query.data_source_id, selectedDataSourceId, firstDataSourceId], dataSources)
+        chooseDataSourceId([query.data_source_id, firstDataSourceId], dataSources)
       );
     }
   }, [query.data_source_id, queryFlags.isNew, dataSourcesLoaded, dataSources, handleDataSourceChange]);
