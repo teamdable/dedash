@@ -64,6 +64,54 @@ def format_sql_query(org_slug=None):
     return jsonify({"query": sqlparse.format(query, **settings.SQLPARSE_FORMAT_OPTIONS)})
 
 
+@routes.route(org_scoped_rule("/api/queries/<query_id>/github_file_exists"), methods=["GET"])
+@login_required
+@require_permission("view_query")
+def check_github_file_exists(query_id, org_slug=None):
+    """
+    Check if a query file exists in the GitHub repository.
+
+    :param query_id: The query ID
+    :>json bool exists: Whether the file exists
+    :>json string url: The GitHub URL if file exists
+    """
+    if not settings.GITHUB_API_TOKEN:
+        return jsonify({"exists": False, "error": "GitHub API token not configured"})
+
+    try:
+        # Calculate range bucket (1-1000, 1001-2000, etc.)
+        query_id_int = int(query_id)
+        range_start = ((query_id_int - 1) // 1000) * 1000 + 1
+        range_end = range_start + 999
+        range_folder = f"{range_start}-{range_end}"
+
+        # Build file path and GitHub API URL
+        file_path = f"queries/{range_folder}/{query_id}.sql"
+        api_url = f"https://api.github.com/repos/{settings.GITHUB_QUERIES_REPO}/contents/{file_path}?ref={settings.GITHUB_QUERIES_BRANCH}"
+
+        import requests
+
+        headers = {
+            "Authorization": f"token {settings.GITHUB_API_TOKEN}",
+            "Accept": "application/vnd.github.v3+json",
+        }
+        response = requests.get(api_url, headers=headers, timeout=5)
+
+        if response.status_code == 200:
+            github_url = f"https://github.com/{settings.GITHUB_QUERIES_REPO}/blob/{settings.GITHUB_QUERIES_BRANCH}/{file_path}"
+            return jsonify({"exists": True, "url": github_url})
+        else:
+            return jsonify({"exists": False})
+    except ValueError:
+        return jsonify({"exists": False, "error": "Invalid query ID"})
+    except Exception as e:
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.exception("Error checking GitHub file existence")
+        return jsonify({"exists": False, "error": str(e)})
+
+
 class QuerySearchResource(BaseResource):
     @require_permission("view_query")
     def get(self):

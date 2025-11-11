@@ -52,6 +52,11 @@ QUERY_RESULTS_EXPIRED_TTL = int(os.environ.get("REDASH_QUERY_RESULTS_EXPIRED_TTL
 SCHEMAS_REFRESH_SCHEDULE = int(os.environ.get("REDASH_SCHEMAS_REFRESH_SCHEDULE", 30))
 SCHEMAS_REFRESH_TIMEOUT = int(os.environ.get("REDASH_SCHEMAS_REFRESH_TIMEOUT", 300))
 
+# GitHub API Configuration for query source links
+GITHUB_API_TOKEN = os.environ.get("REDASH_GITHUB_API_TOKEN", "")
+GITHUB_QUERIES_REPO = os.environ.get("REDASH_GITHUB_QUERIES_REPO", "teamdable/dna_redash_queries")
+GITHUB_QUERIES_BRANCH = os.environ.get("REDASH_GITHUB_QUERIES_BRANCH", "main")
+
 AUTH_TYPE = os.environ.get("REDASH_AUTH_TYPE", "api_key")
 INVITATION_TOKEN_MAX_AGE = int(os.environ.get("REDASH_INVITATION_TOKEN_MAX_AGE", 60 * 60 * 24 * 7))
 

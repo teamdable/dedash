@@ -21,6 +21,7 @@ import useRenameQuery from "../hooks/useRenameQuery";
 import useDuplicateQuery from "../hooks/useDuplicateQuery";
 import useApiKeyDialog from "../hooks/useApiKeyDialog";
 import usePermissionsEditorDialog from "../hooks/usePermissionsEditorDialog";
+import useGitHubLink from "../hooks/useGitHubLink";
 
 import "./QueryPageHeader.less";
 
@@ -81,6 +82,7 @@ export default function QueryPageHeader({
   const [isDuplicating, duplicateQuery] = useDuplicateQuery(query);
   const openApiKeyDialog = useApiKeyDialog(query, onChange);
   const openPermissionsEditorDialog = usePermissionsEditorDialog(query);
+  const { githubUrl, isAvailable: isGitHubLinkAvailable } = useGitHubLink(query.id);
 
   const moreActionsMenu = useMemo(
     () =>
@@ -127,6 +129,16 @@ export default function QueryPageHeader({
             title: "Show API Key",
             onClick: openApiKeyDialog,
           },
+          viewInGitHub: {
+            isAvailable: isGitHubLinkAvailable && !queryFlags.isNew,
+            title: (
+              <React.Fragment>
+                View in GitHub <i className="fa fa-external-link m-l-5" aria-hidden="true" />
+                <span className="sr-only">(opens in a new tab)</span>
+              </React.Fragment>
+            ),
+            onClick: () => window.open(githubUrl, "_blank", "noopener,noreferrer"),
+          },
         },
       ]),
     [
@@ -143,6 +155,8 @@ export default function QueryPageHeader({
       publishQuery,
       unpublishQuery,
       openApiKeyDialog,
+      githubUrl,
+      isGitHubLinkAvailable,
     ]
   );
 
