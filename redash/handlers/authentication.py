@@ -283,7 +283,7 @@ def client_config():
         "extendedAlertOptions": settings.FEATURE_EXTENDED_ALERT_OPTIONS,
         "mailSettingsMissing": not settings.email_server_is_configured(),
         "dashboardRefreshIntervals": settings.DASHBOARD_REFRESH_INTERVALS,
-        "queryRefreshIntervalFor s": settings.QUERY_REFRESH_INTERVALS,
+        "queryRefreshIntervals": settings.QUERY_REFRESH_INTERVALS,
         "googleLoginEnabled": settings.GOOGLE_OAUTH_ENABLED,
         "ldapLoginEnabled": settings.LDAP_LOGIN_ENABLED,
         "pageSize": settings.PAGE_SIZE,
