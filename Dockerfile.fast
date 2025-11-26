@@ -1,0 +1,62 @@
+# Fast build Dockerfile - 로컬에서 미리 빌드한 파일 사용
+FROM python:3.10-slim-bookworm
+
+EXPOSE 5000
+
+RUN useradd --create-home redash
+
+# Ubuntu packages
+RUN apt-get update && \
+  apt-get install -y --no-install-recommends \
+  pkg-config \
+  curl \
+  gnupg \
+  build-essential \
+  pwgen \
+  libffi-dev \
+  sudo \
+  git-core \
+  wget \
+  # Postgres client
+  libpq-dev \
+  # ODBC support:
+  g++ unixodbc-dev \
+  # for SAML
+  xmlsec1 \
+  # Additional packages
+  libssl-dev \
+  default-libmysqlclient-dev \
+  freetds-dev \
+  libsasl2-dev \
+  unzip \
+  libsasl2-modules-gssapi-mit && \
+  apt-get clean && \
+  rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+ENV POETRY_VERSION=1.8.3
+ENV POETRY_HOME=/etc/poetry
+ENV POETRY_VIRTUALENVS_CREATE=false
+RUN curl -sSL https://install.python-poetry.org | python3 -
+
+RUN /etc/poetry/bin/poetry cache clear pypi --all
+
+COPY pyproject.toml poetry.lock ./
+
+ARG POETRY_OPTIONS="--no-root --no-interaction --no-ansi"
+ARG install_groups="main,all_ds,dev"
+RUN /etc/poetry/bin/poetry install --only $install_groups $POETRY_OPTIONS
+
+# 프로젝트 파일 복사 (client/dist는 .dockerignore에서 제외됨)
+COPY --chown=redash . /app
+
+# 로컬에서 빌드한 frontend 파일을 명시적으로 복사
+# (.dockerignore에서 제외되었으므로 별도로 복사 필요)
+COPY --chown=redash ./client/dist /app/client/dist
+
+RUN chown redash /app
+USER redash
+
+ENTRYPOINT ["/app/bin/docker-entrypoint"]
+CMD ["server"]

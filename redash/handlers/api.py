@@ -95,6 +95,7 @@ from redash.handlers.visualizations import (
     VisualizationResource,
 )
 from redash.handlers.widgets import WidgetListResource, WidgetResource
+from redash.handlers.ai_agent import AIAgentResource
 from redash.utils import json_dumps
 
 
@@ -287,3 +288,4 @@ api.add_org_resource(QuerySnippetListResource, "/api/query_snippets", endpoint="
 
 api.add_org_resource(TrinoScaleoutResource, "/api/trino/scaleout", endpoint="trino_scaleout")
 api.add_org_resource(OrganizationSettings, "/api/settings/organization", endpoint="organization_settings")
+api.add_org_resource(AIAgentResource, "/api/ai_agent", endpoint="ai_agent")

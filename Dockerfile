@@ -4,6 +4,7 @@ RUN npm install --global --force yarn@1.22.22
 
 # Controls whether to build the frontend assets
 ARG skip_frontend_build
+ARG NODE_OPTIONS
 
 ENV CYPRESS_INSTALL_BINARY=0
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
@@ -23,19 +24,11 @@ ENV BABEL_ENV=${code_coverage:+test}
 # Avoid issues caused by lags in disk and network I/O speeds when working on top of QEMU emulation for multi-platform image building.
 RUN yarn config set network-timeout 300000
 
-RUN if [ "x$skip_frontend_build" = "x" ] ; then yarn --frozen-lockfile --network-concurrency 1; fi
+RUN yarn install --frozen-lockfile --network-concurrency 1
 
 COPY --chown=redash client /frontend/client
 COPY --chown=redash webpack.config.js /frontend/
-RUN <<EOF
-  if [ "x$skip_frontend_build" = "x" ]; then
-    yarn build
-  else
-    mkdir -p /frontend/client/dist
-    touch /frontend/client/dist/multi_org.html
-    touch /frontend/client/dist/index.html
-  fi
-EOF
+RUN yarn clean && yarn build:viz && NODE_OPTIONS="--max-old-space-size=6144 --openssl-legacy-provider" NODE_ENV=production npx webpack --progress --color
 
 FROM python:3.10-slim-bookworm
 

@@ -38,13 +38,14 @@ export default function EditorControl({
   formatButtonProps,
   saveButtonProps,
   executeButtonProps,
+  aiAgentButtonProps,
   autocompleteToggleProps,
   autoLimitCheckboxProps,
   dataSourceSelectorProps,
 }) {
   useEffect(() => {
     const buttons = filter(
-      [addParameterButtonProps, formatButtonProps, saveButtonProps, executeButtonProps],
+      [addParameterButtonProps, formatButtonProps, saveButtonProps, executeButtonProps, aiAgentButtonProps],
       b => b.shortcut && isFunction(b.onClick)
     );
     if (buttons.length > 0) {
@@ -54,7 +55,7 @@ export default function EditorControl({
         KeyboardShortcuts.unbind(shortcuts);
       };
     }
-  }, [addParameterButtonProps, formatButtonProps, saveButtonProps, executeButtonProps]);
+  }, [addParameterButtonProps, formatButtonProps, saveButtonProps, executeButtonProps, aiAgentButtonProps]);
 
   return (
     <div className="query-editor-controls">
@@ -114,6 +115,19 @@ export default function EditorControl({
           </Button>
         </ButtonTooltip>
       )}
+      {aiAgentButtonProps !== false && (
+        <ButtonTooltip title={aiAgentButtonProps.title} shortcut={aiAgentButtonProps.shortcut}>
+          <Button
+            className="query-editor-controls-button m-l-5"
+            disabled={aiAgentButtonProps.disabled}
+            loading={aiAgentButtonProps.loading}
+            onClick={aiAgentButtonProps.onClick}
+            data-test="AIAgentButton">
+            {!aiAgentButtonProps.loading && <span className="zmdi zmdi-comment-text" />}
+            {aiAgentButtonProps.text}
+          </Button>
+        </ButtonTooltip>
+      )}
       {executeButtonProps !== false && (
         <ButtonTooltip title={executeButtonProps.title} shortcut={executeButtonProps.shortcut}>
           <Button
@@ -148,6 +162,7 @@ EditorControl.propTypes = {
   formatButtonProps: ButtonPropsPropType,
   saveButtonProps: ButtonPropsPropType,
   executeButtonProps: ButtonPropsPropType,
+  aiAgentButtonProps: ButtonPropsPropType,
   autocompleteToggleProps: PropTypes.oneOfType([
     PropTypes.bool, // `false` to hide
     PropTypes.shape({
@@ -181,6 +196,7 @@ EditorControl.defaultProps = {
   formatButtonProps: false,
   saveButtonProps: false,
   executeButtonProps: false,
+  aiAgentButtonProps: false,
   autocompleteToggleProps: false,
   autoLimitCheckboxProps: false,
   dataSourceSelectorProps: false,

@@ -1,0 +1,91 @@
+client/.tmp/
+node_modules/
+viz-lib/node_modules/
+.tmp/
+.venv/
+venv/
+.git/
+/.codeclimate.yml
+/.coverage
+/coverage.xml
+/.circleci/
+/.github/
+/netlify.toml
+/setup/
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+CHANGELOG.md
+CONTRIBUTING.md
+*.md
+
+# Development files
+.env
+.env.*
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files
+coverage/
+.nyc_output/
+test_report/
+cypress/videos/
+cypress/screenshots/
+
+# Build artifacts - KEEP client/dist for fast build!
+# client/dist/  ← 주석 처리하여 포함
+viz-lib/dist/
+viz-lib/lib/
+
+# Node modules (will be installed in container)
+node_modules/
+viz-lib/node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Docker
+Dockerfile*
+docker-compose*
+# .dockerignore  ← 이것도 포함해야 함
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/

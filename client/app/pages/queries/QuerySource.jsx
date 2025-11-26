@@ -42,6 +42,7 @@ import useDeleteVisualization from "./hooks/useDeleteVisualization";
 import useUpdateQuery from "./hooks/useUpdateQuery";
 import useUpdateQueryDescription from "./hooks/useUpdateQueryDescription";
 import useUnsavedChangesAlert from "./hooks/useUnsavedChangesAlert";
+import useAIAgentDialog from "./hooks/useAIAgentDialog";
 
 import "./components/QuerySourceDropdown"; // register QuerySourceDropdown
 import "./QuerySource.less";
@@ -184,6 +185,29 @@ function QuerySource(props) {
     }
   }, [isQuerySaving, saveQuery]);
 
+  // AI Agent Dialog 설정
+  const openAIAgentDialog = useAIAgentDialog(query, queryResult, dataSource, suggestedQuery => {
+    // AI가 제안한 SQL을 적용 (formatQuery와 동일한 방식)
+    console.log("[QuerySource] Applying AI suggested query:", suggestedQuery.substring(0, 50));
+    const updatedQuery = extend(query.clone(), { query: suggestedQuery });
+    setQuery(updatedQuery);
+    // Query가 변경되었으므로 dirty 상태는 자동으로 관리됨
+  });
+
+  const [isAIAgentProcessing, setIsAIAgentProcessing] = useState(false);
+
+  const handleAIAgent = useCallback(() => {
+    if (!isAIAgentProcessing) {
+      setIsAIAgentProcessing(true);
+      try {
+        // AI Agent Dialog 열기
+        openAIAgentDialog();
+      } finally {
+        setIsAIAgentProcessing(false);
+      }
+    }
+  }, [isAIAgentProcessing, openAIAgentDialog]);
+
   const addVisualization = useAddVisualizationDialog(query, queryResult, doSaveQuery, (newQuery, visualization) => {
     setQuery(newQuery);
     setSelectedVisualization(visualization.id);
@@ -295,6 +319,14 @@ function QuerySource(props) {
                           loading: isQuerySaving,
                         }
                       }
+                      aiAgentButtonProps={{
+                        title: "AI Assistant - Generate/Fix SQL",
+                        text: <span className="hidden-xs">AI Assistant</span>,
+                        shortcut: "mod+shift+a",
+                        onClick: handleAIAgent,
+                        loading: isAIAgentProcessing,
+                        disabled: !dataSource,
+                      }}
                       executeButtonProps={{
                         disabled: !queryFlags.canExecute || isQueryExecuting || areParametersDirty,
                         shortcut: "mod+enter, alt+enter, ctrl+enter, shift+enter",

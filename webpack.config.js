@@ -129,15 +129,31 @@ const config = {
       chunks: chunk => {
         return chunk.name != "server";
       }
-    }
+    },
+    // Production 빌드 시 Terser 최적화
+    ...(isProduction && {
+      minimize: true,
+      minimizer: [
+        new (require('terser-webpack-plugin'))({
+          parallel: true,  // 멀티코어 사용 (속도 2-3배 향상)
+          terserOptions: {
+            compress: {
+              passes: 1,  // 최적화 패스 줄이기 (기본 2 → 1)
+            },
+          },
+          extractComments: false,  // 주석 추출 비활성화 (속도 향상)
+        }),
+      ],
+    }),
   },
   module: {
     rules: [
-      {
+      // source-map-loader는 개발 환경에서만 사용 (프로덕션에서 매우 느림)
+      ...(!isProduction ? [{
         test: /\.js$/,
         enforce: "pre",
         use: ["source-map-loader"],
-      },
+      }] : []),
       {
         test: /\.(t|j)sx?$/,
         exclude: /node_modules/,
@@ -180,15 +196,20 @@ const config = {
             loader: isProduction ? MiniCssExtractPlugin.loader : "style-loader"
           },
           {
-            loader: "css-loader"
+            loader: "css-loader",
+            options: {
+              sourceMap: !isProduction,  // Production에서 소스맵 비활성화
+              importLoaders: 1,  // LESS loader 전에 처리
+            }
           },
           {
             loader: "less-loader",
             options: {
+              sourceMap: !isProduction,  // Production에서 소스맵 비활성화
               plugins: [
                 new LessPluginAutoPrefix({ browsers: ["last 3 versions"] })
               ],
-              javascriptEnabled: true
+              javascriptEnabled: true  // Ant Design LESS에서 JavaScript 사용 허용
             }
           }
         ]

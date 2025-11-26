@@ -33,5 +33,9 @@ docker push 740271638955.dkr.ecr.ap-northeast-2.amazonaws.com/dable/redash:25.8.
 
 ```bash
 # Podman 빌드
-podman build --platform linux/amd64 --build-arg NODE_OPTIONS="--max-old-space-size=6144" -t redash:x86 .
+ECR_REPO=740271638955.dkr.ecr.ap-northeast-2.amazonaws.com/dable/redash
+ECR_TAG=25.8.0-Dable-0.0.5
+podman build --platform linux/amd64 --build-arg NODE_OPTIONS="--max-old-space-size=6144" -t $ECR_REPO:$ECR_TAG .
+aws ecr get-login-password --region ap-northeast-2 | podman login --username AWS --password-stdin $ECR_REPO
+podman push $ECR_REPO:$ECR_TAG
 ```
