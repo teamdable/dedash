@@ -3,7 +3,7 @@
 ## Docker 빌드
 
 ```bash
-# Colima x86 설정 (8GB 메모리)
+# Colima x86 설정 (8GB 메모리) 또는 Podman 사용 가능
 colima start --profile x86 --arch x86_64 --memory 8
 
 # Docker 빌드
