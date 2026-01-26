@@ -86,20 +86,18 @@ def _get_execution_history(client, execution_id: str) -> dict | None:
             return None
 
         record = {
-            "query_execution_id": execution.get("QueryExecutionId"),
-            "query": execution.get("Query"),
-            "state": execution.get("Status", {}).get("State"),
+            "execution_id": execution.get("QueryExecutionId"),
+            "sql": execution.get("Query"),
+            "execution_parameters": "[]",
+            "data_scanned_bytes": data_scanned,
             "submission_time": execution.get("Status", {})
             .get("SubmissionDateTime", datetime.now(timezone.utc))
             .isoformat(),
             "completion_time": execution.get("Status", {})
             .get("CompletionDateTime", datetime.now(timezone.utc))
             .isoformat(),
-            "data_scanned_bytes": data_scanned,
-            "execution_time_ms": stats.get("EngineExecutionTimeInMillis", 0),
-            "work_group": execution.get("WorkGroup"),
-            "database": execution.get("QueryExecutionContext", {}).get("Database"),
-            "catalog": execution.get("QueryExecutionContext", {}).get("Catalog"),
+            "state": execution.get("Status", {}).get("State"),
+            "workgroup": execution.get("WorkGroup"),
             "repo_name": TARGET_REPO_NAME,
         }
         return record
