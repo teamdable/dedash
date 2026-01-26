@@ -56,11 +56,11 @@ def _get_5min_partition_key() -> str:
     """Generate a partition key based on current UTC time, rounded to 5-minute intervals.
 
     Returns:
-        String in format 'YYYYMMDDHHmm' where mm is rounded down to nearest 5 minutes.
+        String in format 'YYYY-MM-DD-HH-mm' where mm is rounded down to nearest 5 minutes.
     """
     now = datetime.now(timezone.utc)
     minute_rounded = (now.minute // 5) * 5
-    return now.strftime(f"%Y%m%d%H{minute_rounded:02d}")
+    return now.strftime(f"%Y-%m-%d-%H-{minute_rounded:02d}")
 
 
 def _get_execution_history(client, execution_id: str) -> dict | None:
