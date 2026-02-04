@@ -1,5 +1,6 @@
 import logging
 import time
+from datetime import datetime, timezone, timedelta
 
 from rq.timeouts import JobTimeoutException
 
@@ -16,6 +17,19 @@ from redash.worker import get_job_logger, job
 from .execution import enqueue_query
 
 logger = get_job_logger(__name__)
+
+KST = timezone(timedelta(hours=9))
+
+
+def _is_within_business_hours():
+    if not settings.FEATURE_BUSINESS_HOURS_ONLY:
+        return True
+    now_kst = datetime.now(KST)
+    if now_kst.weekday() > 4:
+        return False
+    if now_kst.hour < settings.BUSINESS_HOURS_START or now_kst.hour >= settings.BUSINESS_HOURS_END:
+        return False
+    return True
 
 
 def empty_schedules():
@@ -81,6 +95,11 @@ def _apply_auto_limit(query_text, query):
 
 
 def refresh_queries():
+    if not _is_within_business_hours():
+        logger.info("Skipping refresh queries: outside KST business hours (%d-%d, Mon-Fri).",
+                     settings.BUSINESS_HOURS_START, settings.BUSINESS_HOURS_END)
+        return
+
     started_at = time.time()
     logger.info("Refreshing queries...")
     enqueued = []

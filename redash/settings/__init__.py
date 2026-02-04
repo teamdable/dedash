@@ -430,6 +430,11 @@ FEATURE_ALLOW_CUSTOM_JS_VISUALIZATIONS = parse_boolean(
 FEATURE_AUTO_PUBLISH_NAMED_QUERIES = parse_boolean(os.environ.get("REDASH_FEATURE_AUTO_PUBLISH_NAMED_QUERIES", "true"))
 FEATURE_EXTENDED_ALERT_OPTIONS = parse_boolean(os.environ.get("REDASH_FEATURE_EXTENDED_ALERT_OPTIONS", "false"))
 
+# Business Hours (KST) restriction for scheduled query refresh
+FEATURE_BUSINESS_HOURS_ONLY = parse_boolean(os.environ.get("REDASH_FEATURE_BUSINESS_HOURS_ONLY", "true"))
+BUSINESS_HOURS_START = int(os.environ.get("REDASH_BUSINESS_HOURS_START", "7"))
+BUSINESS_HOURS_END = int(os.environ.get("REDASH_BUSINESS_HOURS_END", "20"))
+
 # BigQuery
 BIGQUERY_HTTP_TIMEOUT = int(os.environ.get("REDASH_BIGQUERY_HTTP_TIMEOUT", "600"))
 
