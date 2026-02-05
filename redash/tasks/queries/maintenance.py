@@ -47,6 +47,9 @@ def _should_refresh_query(query):
     if settings.FEATURE_DISABLE_REFRESH_QUERIES:
         logger.info("Disabled refresh queries.")
         return False
+    elif not _is_within_business_hours() and str(query.id) not in settings.BUSINESS_HOURS_EXEMPT_QUERY_IDS:
+        logger.debug("Skipping refresh of %s because it is outside business hours.", query.id)
+        return False
     elif query.org.is_disabled:
         logger.debug("Skipping refresh of %s because org is disabled.", query.id)
         return False
@@ -95,11 +98,6 @@ def _apply_auto_limit(query_text, query):
 
 
 def refresh_queries():
-    if not _is_within_business_hours():
-        logger.info("Skipping refresh queries: outside KST business hours (%d-%d, Mon-Fri).",
-                     settings.BUSINESS_HOURS_START, settings.BUSINESS_HOURS_END)
-        return
-
     started_at = time.time()
     logger.info("Refreshing queries...")
     enqueued = []

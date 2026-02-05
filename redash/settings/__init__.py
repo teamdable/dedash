@@ -435,6 +435,9 @@ FEATURE_BUSINESS_HOURS_ONLY = parse_boolean(os.environ.get("REDASH_FEATURE_BUSIN
 BUSINESS_HOURS_START = int(os.environ.get("REDASH_BUSINESS_HOURS_START", "7"))
 BUSINESS_HOURS_END = int(os.environ.get("REDASH_BUSINESS_HOURS_END", "20"))
 
+# Comma-separated query IDs exempt from business hours restriction (e.g. "1,42,100")
+BUSINESS_HOURS_EXEMPT_QUERY_IDS = set_from_string(os.environ.get("REDASH_BUSINESS_HOURS_EXEMPT_QUERY_IDS", ""))
+
 # BigQuery
 BIGQUERY_HTTP_TIMEOUT = int(os.environ.get("REDASH_BIGQUERY_HTTP_TIMEOUT", "600"))
 
