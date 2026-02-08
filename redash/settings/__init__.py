@@ -432,8 +432,8 @@ FEATURE_EXTENDED_ALERT_OPTIONS = parse_boolean(os.environ.get("REDASH_FEATURE_EX
 
 # Business Hours (KST) restriction for scheduled query refresh
 FEATURE_BUSINESS_HOURS_ONLY = parse_boolean(os.environ.get("REDASH_FEATURE_BUSINESS_HOURS_ONLY", "true"))
-BUSINESS_HOURS_START = int(os.environ.get("REDASH_BUSINESS_HOURS_START", "7"))
-BUSINESS_HOURS_END = int(os.environ.get("REDASH_BUSINESS_HOURS_END", "20"))
+BUSINESS_HOURS_START = int(os.environ.get("REDASH_BUSINESS_HOURS_START", "5"))
+BUSINESS_HOURS_END = int(os.environ.get("REDASH_BUSINESS_HOURS_END", "22"))
 
 # Comma-separated query IDs exempt from business hours restriction (e.g. "1,42,100")
 BUSINESS_HOURS_EXEMPT_QUERY_IDS = set_from_string(os.environ.get("REDASH_BUSINESS_HOURS_EXEMPT_QUERY_IDS", ""))
