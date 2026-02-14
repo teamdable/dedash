@@ -2,6 +2,8 @@ import logging
 import time
 from datetime import datetime, timezone, timedelta
 
+import holidays
+
 from rq.timeouts import JobTimeoutException
 
 from redash import models, redis_connection, settings, statsd_client
@@ -19,6 +21,7 @@ from .execution import enqueue_query
 logger = get_job_logger(__name__)
 
 KST = timezone(timedelta(hours=9))
+KR_HOLIDAYS = holidays.country_holidays("KR")
 
 
 def _is_within_business_hours():
@@ -26,6 +29,8 @@ def _is_within_business_hours():
         return True
     now_kst = datetime.now(KST)
     if now_kst.weekday() > 4:
+        return False
+    if now_kst.date() in KR_HOLIDAYS:
         return False
     if now_kst.hour < settings.BUSINESS_HOURS_START or now_kst.hour >= settings.BUSINESS_HOURS_END:
         return False
