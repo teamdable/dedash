@@ -20,6 +20,7 @@ ANNOTATE_QUERY = parse_boolean(os.environ.get("ATHENA_ANNOTATE_QUERY", "true"))
 SHOW_EXTRA_SETTINGS = parse_boolean(os.environ.get("ATHENA_SHOW_EXTRA_SETTINGS", "true"))
 ASSUME_ROLE = parse_boolean(os.environ.get("ATHENA_ASSUME_ROLE", "false"))
 OPTIONAL_CREDENTIALS = parse_boolean(os.environ.get("ATHENA_OPTIONAL_CREDENTIALS", "true"))
+EXECUTION_HISTORY_S3_PATH = os.environ.get("ATHENA_EXECUTION_HISTORY_S3_PATH", "")
 
 try:
     import boto3
@@ -121,6 +122,9 @@ def _upload_execution_history_to_s3(athena_client, s3_client, execution_id: str)
     Returns:
         S3 path where the JSONL file was uploaded, or None if no records to upload.
     """
+    if not EXECUTION_HISTORY_S3_PATH:
+        return None
+
     if not execution_id:
         logger.debug("No execution ID provided, skipping history upload")
         return None
@@ -134,9 +138,13 @@ def _upload_execution_history_to_s3(athena_client, s3_client, execution_id: str)
         )
         return None
 
+    # Parse s3_path: "s3://bucket/prefix" -> bucket="bucket", prefix="prefix"
+    path_without_scheme = EXECUTION_HISTORY_S3_PATH.removeprefix("s3://")
+    s3_bucket, _, s3_prefix = path_without_scheme.partition("/")
+    s3_prefix = s3_prefix.rstrip("/")
+
     partition_key = _get_5min_partition_key()
-    s3_key = f"athena-execution-history/utc_basic_time={partition_key}/{execution_id}.jsonl"
-    s3_bucket = "kr-dable-tmp"
+    s3_key = f"{s3_prefix}/utc_basic_time={partition_key}/{execution_id}.jsonl"
     s3_path = f"s3://{s3_bucket}/{s3_key}"
 
     jsonl_content = json.dumps(record)
