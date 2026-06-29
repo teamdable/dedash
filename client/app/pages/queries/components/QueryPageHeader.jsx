@@ -104,8 +104,7 @@ export default function QueryPageHeader({
             onClick: archiveQuery,
           },
           managePermissions: {
-            isAvailable:
-              !queryFlags.isNew && queryFlags.canEdit && !queryFlags.isArchived && clientConfig.showPermissionsControl,
+            isAvailable: !queryFlags.isNew && !queryFlags.isArchived && clientConfig.showPermissionsControl,
             title: "Manage Permissions",
             onClick: openPermissionsEditorDialog,
           },

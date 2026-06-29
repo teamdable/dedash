@@ -118,7 +118,6 @@ function DashboardMoreOptionsButton({ dashboardConfiguration }) {
     archiveDashboard,
     managePermissions,
     gridDisabled,
-    isDashboardOwnerOrAdmin,
     isDuplicating,
     duplicateDashboard,
   } = dashboardConfiguration;
@@ -152,7 +151,7 @@ function DashboardMoreOptionsButton({ dashboardConfiguration }) {
               </PlainButton>
             </Menu.Item>
           )}
-          {clientConfig.showPermissionsControl && isDashboardOwnerOrAdmin && (
+          {clientConfig.showPermissionsControl && (
             <Menu.Item>
               <PlainButton onClick={managePermissions}>Manage Permissions</PlainButton>
             </Menu.Item>

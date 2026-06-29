@@ -49,14 +49,17 @@ class TestObjectPermissionsListPost(BaseTestCase):
         self.assertEqual(200, rv.status_code)
         self.assertTrue(AccessPermission.exists(query, ACCESS_TYPE_MODIFY, other_user))
 
-    def test_returns_403_if_the_user_isnt_owner(self):
+    def test_creates_permission_when_the_user_isnt_owner(self):
+        # ACL management is open to any org member, not just owner/admin.
         query = self.factory.create_query()
         other_user = self.factory.create_user()
 
         data = {"access_type": ACCESS_TYPE_MODIFY, "user_id": other_user.id}
 
         rv = self.make_request("post", "/api/queries/{}/acl".format(query.id), user=other_user, data=data)
-        self.assertEqual(403, rv.status_code)
+
+        self.assertEqual(200, rv.status_code)
+        self.assertTrue(AccessPermission.exists(query, ACCESS_TYPE_MODIFY, other_user))
 
     def test_returns_400_if_the_grantee_isnt_from_organization(self):
         query = self.factory.create_query()
@@ -140,14 +143,24 @@ class TestObjectPermissionsListDelete(BaseTestCase):
 
         self.assertEqual(rv.status_code, 404)
 
-    def test_returns_403_for_non_owner(self):
+    def test_removes_permission_as_non_owner(self):
+        # ACL management is open to any org member, not just owner/admin.
         query = self.factory.create_query()
-        user = self.factory.create_user()
+        non_owner = self.factory.create_user()
+        grantee = self.factory.create_user()
 
-        data = {"access_type": ACCESS_TYPE_MODIFY, "user_id": user.id}
-        rv = self.make_request("delete", "/api/queries/{}/acl".format(query.id), user=user, data=data)
+        AccessPermission.grant(
+            obj=query,
+            access_type=ACCESS_TYPE_MODIFY,
+            grantor=self.factory.user,
+            grantee=grantee,
+        )
 
-        self.assertEqual(rv.status_code, 403)
+        data = {"access_type": ACCESS_TYPE_MODIFY, "user_id": grantee.id}
+        rv = self.make_request("delete", "/api/queries/{}/acl".format(query.id), user=non_owner, data=data)
+
+        self.assertEqual(rv.status_code, 200)
+        self.assertFalse(AccessPermission.exists(query, ACCESS_TYPE_MODIFY, grantee))
 
     def test_returns_200_even_if_there_is_no_permission(self):
         query = self.factory.create_query()
