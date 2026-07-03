@@ -14,7 +14,7 @@ from redash.query_runner import InterruptException
 from redash.tasks.alerts import check_alerts_for_query
 from redash.tasks.failure_report import track_failure
 from redash.tasks.worker import Job, Queue
-from redash.utils import gen_query_hash, utcnow
+from redash.utils import gen_query_hash, matview, utcnow
 from redash.worker import get_job_logger
 
 logger = get_job_logger(__name__)
@@ -186,6 +186,13 @@ class QueryExecutor:
             else None
         )  # fmt: skip
 
+        self.matview_ctx = None
+        if is_scheduled_query and self.query_model:
+            spec = matview.parse(self.query)
+            if spec:
+                # Loads the previous result blob; must happen before the session close below.
+                self.matview_ctx = matview.plan_window(spec, self.query_model, redis_connection)
+
         # Close DB connection to prevent holding a connection for a long time while the query is executing.
         models.db.session.close()
         self.query_hash = gen_query_hash(self.query)
@@ -203,6 +210,8 @@ class QueryExecutor:
 
         query_runner = self.data_source.query_runner
         annotated_query = self._annotate_query(query_runner)
+        if self.matview_ctx:
+            annotated_query = matview.render(annotated_query, self.matview_ctx.matview_start)
 
         try:
             data, error = query_runner.run_query(annotated_query, self.user)
@@ -240,11 +249,14 @@ class QueryExecutor:
                 self.query_model.skip_updated_at = True
                 models.db.session.add(self.query_model)
 
+            if self.matview_ctx:
+                data = matview.merge(self.matview_ctx, data, redis_connection)
+
             query_result = models.QueryResult.store_result(
                 self.data_source.org_id,
                 self.data_source,
                 self.query_hash,
-                self.query,
+                self.query,  # matview: always the un-rendered template, so the hash stays stable
                 data,
                 run_time,
                 utcnow(),
@@ -253,6 +265,8 @@ class QueryExecutor:
             updated_query_ids = models.Query.update_latest_result(query_result)
 
             models.db.session.commit()  # make sure that alert sees the latest query result
+            if self.matview_ctx and not self.matview_ctx.aborted:
+                matview.save_meta(redis_connection, self.query_id, self.matview_ctx.matview_hash)
             self._log_progress("checking_alerts")
             for query_id in updated_query_ids:
                 check_alerts_for_query.delay(query_id, self.metadata)

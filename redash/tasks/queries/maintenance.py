@@ -1,9 +1,8 @@
 import logging
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
 import holidays
-
 from rq.timeouts import JobTimeoutException
 
 from redash import models, redis_connection, settings, statsd_client
@@ -13,7 +12,7 @@ from redash.models.parameterized_query import (
 )
 from redash.monitor import rq_job_ids
 from redash.tasks.failure_report import track_failure
-from redash.utils import json_dumps, sentry
+from redash.utils import json_dumps, matview, sentry
 from redash.worker import get_job_logger, job
 
 from .execution import enqueue_query
@@ -98,7 +97,8 @@ class RefreshQueriesError(Exception):
 
 
 def _apply_auto_limit(query_text, query):
-    should_apply_auto_limit = query.options.get("apply_auto_limit", False)
+    # matview merge needs the complete result; a truncating LIMIT would poison the blob
+    should_apply_auto_limit = query.options.get("apply_auto_limit", False) and not matview.parse(query_text)
     return query.data_source.query_runner.apply_auto_limit(query_text, should_apply_auto_limit)
 
 
