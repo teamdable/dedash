@@ -101,7 +101,8 @@ FEATURE_MATVIEW = parse_boolean(os.environ.get("REDASH_FEATURE_MATVIEW", "true")
 - `plan_window(spec, query_model, redis) -> MatviewCtx` — matview_hash 계산, redis 메타·prev
   (latest_query_data) 로드, full/증분 결정, matview_start 계산 (버킷 경계 내림).
 - `render(text, matview_start) -> str` — `re.sub(r"/\*matview:(day|hour)\*/'[^']*'", ...)` 치환.
-- `merge(ctx, prev_data, fresh_data) -> data` — 버킷 값 파싱은 ISO datetime /
+- `merge(ctx, data, redis) -> data` (prev rows 는 ctx 에, redis 는 give-up 시 메타 키 삭제용) —
+  버킷 값 파싱은 ISO datetime /
   'yyyy-MM-dd-HH' / 'yyyy-MM-dd' 3형식 지원. 컬럼 집합 불일치 시 병합 포기:
   fresh 만 저장 + redis 키 삭제 + warning 로그 (다음 주기에 full 재적재).
 - `save_meta(redis, query_id, matview_hash)` — TTL 30d.
@@ -114,7 +115,7 @@ FEATURE_MATVIEW = parse_boolean(os.environ.get("REDASH_FEATURE_MATVIEW", "true")
   (prev blob 을 세션 닫기 전에 로드).
 - `run()`: `annotated_query = self._annotate_query(...)` 직후
   `annotated_query = matview.render(annotated_query, ...)`.
-  성공 분기에서 `store_result` 호출 전 `data = matview.merge(self.matview_ctx, ..., data)`,
+  성공 분기에서 `store_result` 호출 전 `data = matview.merge(self.matview_ctx, data, redis_connection)`,
   저장 후 `matview.save_meta(...)`.
   (`run_query` 반환 data 의 str/dict 여부는 execution.py:224 `_get_size_iterative` 기준
   구현 시 확인.)

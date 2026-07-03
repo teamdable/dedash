@@ -149,6 +149,21 @@ def test_merge_parses_hour_and_iso_buckets():
     assert [r["v"] for r in merged["rows"]] == [1, 3]
 
 
+def test_merge_parses_datetime_object_buckets():
+    ctx = make_ctx(
+        matview_start=datetime(2026, 7, 2),
+        retention_start=datetime(2026, 5, 4),
+        prev_rows=[
+            {"utc_basic_time": datetime(2026, 6, 1), "v": 1},  # naive datetime, kept
+            {"utc_basic_time": datetime(2026, 7, 2, tzinfo=timezone.utc), "v": 2},  # tz-aware, >= start -> dropped
+        ],
+        prev_columns=columns("utc_basic_time", "v"),
+    )
+    data = {"columns": columns("utc_basic_time", "v"), "rows": [{"utc_basic_time": datetime(2026, 7, 2, 8), "v": 3}]}
+    merged = matview.merge(ctx, data, FakeRedis())
+    assert [r["v"] for r in merged["rows"]] == [1, 3]
+
+
 def test_merge_full_passthrough():
     ctx = make_ctx(full=True)
     data = {"columns": columns("utc_basic_time"), "rows": [{"utc_basic_time": "2026-07-01"}]}
@@ -179,6 +194,19 @@ def test_merge_accepts_json_string_data():
     ctx = make_ctx(full=True)
     merged = matview.merge(ctx, json_dumps({"columns": [], "rows": []}), FakeRedis())
     assert merged == {"columns": [], "rows": []}
+
+
+def test_merge_incremental_accepts_json_string_data():
+    ctx = make_ctx(
+        matview_start=datetime(2026, 7, 2),
+        retention_start=datetime(2026, 5, 4),
+        prev_rows=[{"utc_basic_time": "2026-05-04", "v": 1}],
+        prev_columns=columns("utc_basic_time", "v"),
+    )
+    data = json_dumps({"columns": columns("utc_basic_time", "v"), "rows": [{"utc_basic_time": "2026-07-02", "v": 9}]})
+    merged = matview.merge(ctx, data, FakeRedis())
+    assert merged["rows"] == [{"utc_basic_time": "2026-05-04", "v": 1}, {"utc_basic_time": "2026-07-02", "v": 9}]
+    assert not ctx.aborted
 
 
 # --- plan_window ---
