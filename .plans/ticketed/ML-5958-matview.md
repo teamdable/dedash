@@ -62,8 +62,8 @@ else:
 ```
 
 핵심 불변식: `self.query_hash`/`store_result` 에는 **치환 전 텍스트(템플릿)** 를 그대로 쓴다.
-치환은 runner 에 넘기는 `annotated_query` 로컬 변수에만 적용. `gen_query_hash` 가
-주석·공백을 제거하므로 템플릿 해쉬는 매 실행 동일 → `update_latest_result`(models
+치환은 runner 에 넘기는 `annotated_query` 로컬 변수에만 적용. 템플릿은 매 실행 동일한
+텍스트이므로 해쉬도 동일 → `update_latest_result`(models
 `update_latest_result`, 해쉬 매칭)가 병합 결과를 latest 로 자동 연결하고, enqueue 중복
 방지 락·`get_latest` 캐쉬 조회·알림이 전부 기존 그대로 동작한다. 추가 연결 코드 0줄.
 
@@ -77,10 +77,12 @@ else:
 | redis 메타 키 | TTL 30d, 매 실행 갱신. 쿼리 archive·matview 해제 시 자동 소멸. 유실 = full 재적재 (안전 방향) | SET EX |
 | 강제 재적재 (소스 백필/보정) | ① 어노테이션 `v` 범프 (아래 주의 참고) ② 쿼리 페이지 Refresh 버튼: placeholder 그대로 full-range 실행 → latest 교체, 다음 스케줄 병합 때 retention 트림 | 0줄 |
 
-주의: `gen_query_hash` 는 **주석과 공백을 제거**하므로 주석만 고쳐서는 `Query.query_hash` 가
-안 바뀐다. 그래서 어노테이션 문자열을 matview_hash 에 직접 포함시켜, `v` 범프나
-retention/refresh 변경이 무효화 레버가 되게 한다 (retention 을 늘리면 증분으로는 과거를
-못 채우므로 어노테이션 변경 = full 재적재가 맞는 동작).
+주의(구현 시 확인): `gen_query_hash` 는 블록 주석(`/* */`)과 공백만 제거하고 `--` 줄 주석은
+해쉬에 포함된다 (`utils/__init__.py` COMMENTS_REGEX). 따라서 어노테이션(`--` 줄) 수정만으로도
+`Query.query_hash` 가 바뀌어 full 재적재가 된다. 어노테이션 문자열을 matview_hash 에 직접
+포함시키는 것은 이중 안전장치로 유지 (retention 을 늘리면 증분으로는 과거를 못 채우므로
+어노테이션 변경 = full 재적재가 맞는 동작). 마커는 블록 주석이라 해쉬에서 제거되지만
+placeholder 리터럴은 남는다 — 템플릿이 고정이므로 매 실행 동일, 문제 없음.
 
 ## Changes
 
@@ -99,7 +101,8 @@ FEATURE_MATVIEW = parse_boolean(os.environ.get("REDASH_FEATURE_MATVIEW", "true")
 - `plan_window(spec, query_model, redis) -> MatviewCtx` — matview_hash 계산, redis 메타·prev
   (latest_query_data) 로드, full/증분 결정, matview_start 계산 (버킷 경계 내림).
 - `render(text, matview_start) -> str` — `re.sub(r"/\*matview:(day|hour)\*/'[^']*'", ...)` 치환.
-- `merge(ctx, prev_data, fresh_data) -> data` — 버킷 값 파싱은 ISO datetime /
+- `merge(ctx, data, redis) -> data` (prev rows 는 ctx 에, redis 는 give-up 시 메타 키 삭제용) —
+  버킷 값 파싱은 ISO datetime /
   'yyyy-MM-dd-HH' / 'yyyy-MM-dd' 3형식 지원. 컬럼 집합 불일치 시 병합 포기:
   fresh 만 저장 + redis 키 삭제 + warning 로그 (다음 주기에 full 재적재).
 - `save_meta(redis, query_id, matview_hash)` — TTL 30d.
@@ -112,7 +115,7 @@ FEATURE_MATVIEW = parse_boolean(os.environ.get("REDASH_FEATURE_MATVIEW", "true")
   (prev blob 을 세션 닫기 전에 로드).
 - `run()`: `annotated_query = self._annotate_query(...)` 직후
   `annotated_query = matview.render(annotated_query, ...)`.
-  성공 분기에서 `store_result` 호출 전 `data = matview.merge(self.matview_ctx, ..., data)`,
+  성공 분기에서 `store_result` 호출 전 `data = matview.merge(self.matview_ctx, data, redis_connection)`,
   저장 후 `matview.save_meta(...)`.
   (`run_query` 반환 data 의 str/dict 여부는 execution.py:224 `_get_size_iterative` 기준
   구현 시 확인.)
@@ -194,6 +197,70 @@ ctrl_range as (
    plan_window(메타 없음/불일치/prev 없음 → full; retrieved_at 기반 self-healing).
 2. 로컬 compose: matview 쿼리 스케줄 2회 실행 — 1회차 full + redis 키 생성, 2회차 증분
    (Athena 로그로 치환 확인, 결과 = full 실행과 동일), 텍스트·`v` 수정 → full 재적재.
+   - 시나리오: 3742 의 5d 변형(60d→5d, 마커 3곳 — daily day×1, hourly hour×1, d2 hour×1,
+     `apply_auto_limit=true` 유지해 auto limit 가드도 검증) 을 schedule 1h 로 등록,
+     다음날 어노테이션·마커 없는 plain 5d 쿼리와 결과 비교. D−2 이전 버킷 불일치는
+     fact_daily vs hourly 집계 차이(§5 트레이드오프)일 수 있으므로 두 테이블 동치 확인.
+
+   ```sql
+   -- matview: bucket_col=utc_basic_time bucket=day retention=5d refresh=4h v=1
+   ```
+   - 검증 스택 `compose.matview-verify.yaml` (리포 루트, untracked — 이미지는
+     `podman build -t redash-matview:local .` arm64 네이티브, 프론트 포함):
+
+   ```yaml
+   x-env: &env
+     REDASH_LOG_LEVEL: "INFO"
+     REDASH_REDIS_URL: "redis://redis:6379/0"
+     REDASH_DATABASE_URL: "postgresql://postgres@postgres/postgres"
+     REDASH_RATELIMIT_ENABLED: "false"
+     REDASH_FEATURE_BUSINESS_HOURS_ONLY: "false"
+     REDASH_COOKIE_SECRET: "<openssl rand -hex 16>"
+     REDASH_SECRET_KEY: "<openssl rand -hex 16>"
+
+   services:
+     server:
+       image: localhost/redash-matview:local
+       command: server
+       depends_on: [postgres, redis]
+       ports:
+         - "5001:5000"
+       environment: *env
+       restart: unless-stopped
+     scheduler:
+       image: localhost/redash-matview:local
+       command: scheduler
+       depends_on: [server]
+       environment: *env
+       restart: unless-stopped
+     worker:
+       image: localhost/redash-matview:local
+       command: worker
+       depends_on: [server]
+       environment:
+         <<: *env
+         QUEUES: ""
+         WORKERS_COUNT: "2"
+       restart: unless-stopped
+     redis:
+       image: docker.io/library/redis:7-alpine
+       restart: unless-stopped
+     postgres:
+       image: docker.io/library/postgres:13-alpine
+       environment:
+         POSTGRES_HOST_AUTH_METHOD: "trust"
+       volumes:
+         - matview-pg:/var/lib/postgresql/data
+       restart: unless-stopped
+
+   volumes:
+     matview-pg:
+   ```
+
+   - 초기화: `podman compose -f compose.matview-verify.yaml up -d` →
+     `run --rm server create_db` → `exec server ./manage.py users create_root ...` →
+     API 로 Athena DS(운영 DS 5 와 동일 옵션 + 로컬 AWS 키)·쿼리 등록.
+     Athena 실행이력 S3 업로드는 `ATHENA_EXECUTION_HISTORY_S3_PATH` 미설정으로 자동 off.
 3. 운영: 3742 에 적용 후 Athena 실행 이력(S3 저장, ML-5275)으로 scanned bytes 비교
    (기대: 시간당 60일×3테이블 → ~1일치, 1/30 이하). 하루 뒤 최고(最古) 버킷이 하나씩
    빠지는지, D−1/D 버킷 값이 full 재실행과 일치하는지 spot check.
