@@ -62,8 +62,8 @@ else:
 ```
 
 핵심 불변식: `self.query_hash`/`store_result` 에는 **치환 전 텍스트(템플릿)** 를 그대로 쓴다.
-치환은 runner 에 넘기는 `annotated_query` 로컬 변수에만 적용. `gen_query_hash` 가
-주석·공백을 제거하므로 템플릿 해쉬는 매 실행 동일 → `update_latest_result`(models
+치환은 runner 에 넘기는 `annotated_query` 로컬 변수에만 적용. 템플릿은 매 실행 동일한
+텍스트이므로 해쉬도 동일 → `update_latest_result`(models
 `update_latest_result`, 해쉬 매칭)가 병합 결과를 latest 로 자동 연결하고, enqueue 중복
 방지 락·`get_latest` 캐쉬 조회·알림이 전부 기존 그대로 동작한다. 추가 연결 코드 0줄.
 
@@ -77,10 +77,12 @@ else:
 | redis 메타 키 | TTL 30d, 매 실행 갱신. 쿼리 archive·matview 해제 시 자동 소멸. 유실 = full 재적재 (안전 방향) | SET EX |
 | 강제 재적재 (소스 백필/보정) | ① 어노테이션 `v` 범프 (아래 주의 참고) ② 쿼리 페이지 Refresh 버튼: placeholder 그대로 full-range 실행 → latest 교체, 다음 스케줄 병합 때 retention 트림 | 0줄 |
 
-주의: `gen_query_hash` 는 **주석과 공백을 제거**하므로 주석만 고쳐서는 `Query.query_hash` 가
-안 바뀐다. 그래서 어노테이션 문자열을 matview_hash 에 직접 포함시켜, `v` 범프나
-retention/refresh 변경이 무효화 레버가 되게 한다 (retention 을 늘리면 증분으로는 과거를
-못 채우므로 어노테이션 변경 = full 재적재가 맞는 동작).
+주의(구현 시 확인): `gen_query_hash` 는 블록 주석(`/* */`)과 공백만 제거하고 `--` 줄 주석은
+해쉬에 포함된다 (`utils/__init__.py` COMMENTS_REGEX). 따라서 어노테이션(`--` 줄) 수정만으로도
+`Query.query_hash` 가 바뀌어 full 재적재가 된다. 어노테이션 문자열을 matview_hash 에 직접
+포함시키는 것은 이중 안전장치로 유지 (retention 을 늘리면 증분으로는 과거를 못 채우므로
+어노테이션 변경 = full 재적재가 맞는 동작). 마커는 블록 주석이라 해쉬에서 제거되지만
+placeholder 리터럴은 남는다 — 템플릿이 고정이므로 매 실행 동일, 문제 없음.
 
 ## Changes
 

@@ -33,6 +33,7 @@ from redash.tasks.queries import enqueue_query
 from redash.utils import (
     collect_parameters_from_request,
     json_dumps,
+    matview,
     to_filename,
 )
 
@@ -73,6 +74,8 @@ def run_query(query, parameters, data_source, query_id, should_apply_auto_limit,
     except (InvalidParameterError, QueryDetachedFromDataSourceError) as e:
         abort(400, message=str(e))
 
+    # matview merge needs the complete result; a truncating LIMIT would poison the blob
+    should_apply_auto_limit = should_apply_auto_limit and not matview.parse(query.text)
     query_text = data_source.query_runner.apply_auto_limit(query.text, should_apply_auto_limit)
 
     if query.missing_params:
