@@ -6,7 +6,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from redash.handlers.base import BaseResource, get_object_or_404
 from redash.models import AccessPermission, Dashboard, Query, User, db
-from redash.permissions import ACCESS_TYPES, require_admin_or_owner
+from redash.permissions import ACCESS_TYPES
 
 model_to_types = {"queries": Query, "dashboards": Dashboard}
 
@@ -36,8 +36,6 @@ class ObjectPermissionsListResource(BaseResource):
     def post(self, object_type, object_id):
         model = get_model_from_type(object_type)
         obj = get_object_or_404(model.get_by_id_and_org, object_id, self.current_org)
-
-        require_admin_or_owner(obj.user_id)
 
         req = request.get_json(True)
 
@@ -69,8 +67,6 @@ class ObjectPermissionsListResource(BaseResource):
     def delete(self, object_type, object_id):
         model = get_model_from_type(object_type)
         obj = get_object_or_404(model.get_by_id_and_org, object_id, self.current_org)
-
-        require_admin_or_owner(obj.user_id)
 
         req = request.get_json(True)
         grantee_id = req["user_id"]

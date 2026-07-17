@@ -1,3 +1,5 @@
+import datetime
+
 from mock import Mock, patch
 from rq import Connection
 from rq.exceptions import NoSuchJobError
@@ -10,6 +12,7 @@ from redash.tasks.queries.execution import (
     enqueue_query,
     execute_query,
 )
+from redash.utils import utcnow
 from tests import BaseTestCase
 
 
@@ -315,3 +318,61 @@ class QueryExecutorTests(BaseTestCase):
             )
             q = models.Query.get_by_id(q.id)
             self.assertEqual(q.schedule_failures, 0)
+
+
+@patch("redash.tasks.queries.execution.get_current_job", side_effect=fetch_job)
+class TestMatviewExecution(BaseTestCase):
+    """End-to-end wiring of matview render/merge/save_meta through QueryExecutor (ML-5958)."""
+
+    MATVIEW_QUERY = (
+        "-- matview: bucket_col=d bucket=day retention=60d refresh=4h v=1\n"
+        "select d, v from t where d >= greatest(/*matview:day*/'1970-01-01', '2026-01-01')"
+    )
+    COLUMNS = [
+        {"name": "d", "friendly_name": "d", "type": "string"},
+        {"name": "v", "friendly_name": "v", "type": "integer"},
+    ]
+
+    def run_scheduled(self, query, rows):
+        with patch.object(PostgreSQL, "run_query") as qr:
+            qr.return_value = ({"columns": self.COLUMNS, "rows": rows}, None)
+            result_id = execute_query(
+                query.query_text,
+                self.factory.data_source.id,
+                {"query_id": query.id},
+                scheduled_query_id=query.id,
+            )
+        return qr.call_args[0][0], models.QueryResult.query.get(result_id)
+
+    def test_incremental_run_renders_window_and_merges(self, _):
+        q = self.factory.create_query(query_text=self.MATVIEW_QUERY, schedule={"interval": 300})
+        old_day = (utcnow() - datetime.timedelta(days=10)).strftime("%Y-%m-%d")
+        today = utcnow().strftime("%Y-%m-%d")
+
+        # First run: no meta -> full load, rendered from now-retention, stored as-is
+        executed, result = self.run_scheduled(q, [{"d": old_day, "v": 1}, {"d": today, "v": 1}])
+        full_start = (utcnow() - datetime.timedelta(days=60)).strftime("%Y-%m-%d")
+        self.assertIn("/*matview:day*/'%s'" % full_start, executed)
+        self.assertEqual(models.Query.get_by_id(q.id).latest_query_data, result)
+
+        # Second run: meta matches -> incremental window from retrieved_at - refresh
+        incr_start = (result.retrieved_at - datetime.timedelta(hours=4)).strftime("%Y-%m-%d")
+        executed, result = self.run_scheduled(q, [{"d": old_day, "v": 2}, {"d": today, "v": 2}])
+        self.assertIn("/*matview:day*/'%s'" % incr_start, executed)
+        # old bucket kept from prev (fresh duplicate dropped by the guard), recent bucket replaced
+        self.assertEqual(result.data["rows"], [{"d": old_day, "v": 1}, {"d": today, "v": 2}])
+        self.assertEqual(models.Query.get_by_id(q.id).latest_query_data, result)
+
+    def test_annotation_change_forces_full_reload(self, _):
+        q = self.factory.create_query(query_text=self.MATVIEW_QUERY, schedule={"interval": 300})
+        today = utcnow().strftime("%Y-%m-%d")
+        self.run_scheduled(q, [{"d": today, "v": 1}])
+
+        q = models.Query.get_by_id(q.id)
+        q.query_text = self.MATVIEW_QUERY.replace("v=1", "v=2")
+        models.db.session.add(q)
+        models.db.session.commit()
+
+        executed, _result = self.run_scheduled(q, [{"d": today, "v": 1}])
+        full_start = (utcnow() - datetime.timedelta(days=60)).strftime("%Y-%m-%d")
+        self.assertIn("/*matview:day*/'%s'" % full_start, executed)
