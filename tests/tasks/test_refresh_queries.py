@@ -1,10 +1,17 @@
+from datetime import date
+
 from mock import ANY, call, patch
 
 from redash.models import Query
-from redash.tasks.queries.maintenance import refresh_queries
+from redash.tasks.queries.maintenance import KR_HOLIDAYS, refresh_queries
 from tests import BaseTestCase
 
 ENQUEUE_QUERY = "redash.tasks.queries.maintenance.enqueue_query"
+
+
+def test_kr_holidays_includes_constitution_day_from_2026():
+    assert date(2026, 7, 17) in KR_HOLIDAYS
+    assert date(2025, 7, 17) not in KR_HOLIDAYS
 
 
 class TestRefreshQuery(BaseTestCase):
