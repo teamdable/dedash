@@ -122,20 +122,23 @@ class Hive(BaseSQLQueryRunner):
 
             column_names = []
             columns = []
+            rows = []
 
-            for column in cursor.description:
-                column_name = column[COLUMN_NAME]
-                column_names.append(column_name)
+            # DDL/DML(CREATE TABLE 등)은 결과셋이 없어 description이 None
+            if cursor.description is not None:
+                for column in cursor.description:
+                    column_name = column[COLUMN_NAME]
+                    column_names.append(column_name)
 
-                columns.append(
-                    {
-                        "name": column_name,
-                        "friendly_name": column_name,
-                        "type": types_map.get(column[COLUMN_TYPE], None),
-                    }
-                )
+                    columns.append(
+                        {
+                            "name": column_name,
+                            "friendly_name": column_name,
+                            "type": types_map.get(column[COLUMN_TYPE], None),
+                        }
+                    )
 
-            rows = [dict(zip(column_names, row)) for row in cursor]
+                rows = [dict(zip(column_names, row)) for row in cursor]
 
             data = {"columns": columns, "rows": rows}
             error = None
