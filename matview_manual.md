@@ -17,7 +17,8 @@ Redash 쿼리에 matview(증분 캐쉬)를 판정·적용할 때 이 문서만�
 ## 적용 판정 절차
 
 1. **버킷 식별**: 모든 출력 행이 정확히 하나의 시간 버킷에 귀속되는 컬럼을 찾는다.
-   값 형식은 ISO datetime / `'yyyy-MM-dd'` / `'yyyy-MM-dd-HH'` 만 지원. 없으면 부적합.
+   값 형식은 ISO datetime / `'yyyy-MM-dd'` / `'yyyy-MM-dd-HH'` 만 지원. 없으면 부적합 —
+   단 결과가 전 기간 요약이라 버킷이 없을 뿐이고 비용이 원본 재스캔이면 아래 "파싱 base 분리" 로.
 2. **버킷 분해성 검사** — 다음 구조를 전부 찾아 표시한다:
    - 전 기간 집계(GROUP BY 에 버킷 없음), 버킷 경계를 넘는 윈도우 함수
      → bucket 단위를 키우면 해소되는지 확인 (일 단위 `PARTITION BY date(...)` 윈도우
@@ -85,6 +86,38 @@ Redash 쿼리에 matview(증분 캐쉬)를 판정·적용할 때 이 문서만�
   이력 스캔은 retention+1d (첫 버킷의 직전 상태가 필요). 마커 없음.
 - **(c) 부적합**: 이력 테이블이 없는데 박제도 허용 못 하는 경우. matview 포기 또는
   상태 필터를 결과 컬럼으로 내려 시각화에서 거르도록 제안.
+
+## 파싱 base 분리 (결과가 버킷이 아니어도 원본 스캔만 캐시)
+
+적용 판정 1(버킷 식별)에서 결과가 시간 버킷 행이 아니라 전 기간 요약(N줄 카드 등)이고,
+그 요약이 전 구간 `count_distinct` 같은 비가산 집계를 품으면 결과 자체는 matview 불가다.
+그러나 비용의 정체가 큰 원본 로그(특히 raw JSON blob)를 매 실행 전 구간 재스캔하는 것이라면,
+matview 경계를 결과가 아니라 **파싱 직후 per-row 층으로 내려** 절감한다. 쿼리를 둘로 나눈다:
+
+- **base (matview 대상)**: 원본을 스캔해 blob 은 버리고 **필요한 파싱 스칼라만** 남긴
+  per-row(또는 무손실 GROUP BY) 결과를 낸다. 버킷 컬럼(파티션 시각)을 SELECT 에 포함.
+  각 행이 한 버킷에 귀속되고 로그 행은 쓰인 뒤 불변이라 matview 적합. 어노테이션·마커는 통상대로.
+- **reader (QueryResults, SQLite)**: base 결과(`query_<baseid>`)를 읽어 원래의 전 기간
+  집계·`count_distinct`·표시를 한다. 캐시된 per-row 에 식별자(`usr_ifa` 등)를 남겨두면
+  distinct 가 SQLite 에서 그대로 재계산돼 HLL 없이 정확하다.
+
+효과: 매 실행 원본 스캔이 full → 증분(refresh 창), reader 는 캐시된 좁은 행만 SQLite 로 집계.
+
+- base 는 blob 을 버려 **행 바이트만** 줄인다 — 식별자를 남겨야 distinct 가 되므로 행수는
+  원본과 같다. 시간당 수만 행이면 base 도 수십만~백만 행. QueryResults(SQLite)는 이 정도를
+  자름 없이 읽는다(실측 89만 행 왕복 정확 일치). base 결과 페이지 렌더는 무거우나 중간 산출물이라 열 일 없음.
+- 배열·중첩은 저장 말고 reader 가 쓸 형태로 **행 단위 선접기**: `any_match(...)`→bool,
+  `array_max(...)`→scalar. bool 은 `IF(...,1,0)` 정수로 저장해야 SQLite 에서 안전(`'false'` 문자열은 truthy).
+- reader 는 SQLite 방언: `format`→`printf`(`%,d` 천단위 없음),
+  `from_iso8601_timestamp(v)+date_add('day',N,...)`→`datetime(replace(substr(v,1,19),'T',' '),'+N days')`,
+  `date_diff('day',a,b)`→`CAST(julianday(b)-julianday(a) AS INTEGER)`. 날짜·포맷 방언차로
+  D-N 경계 ±1·천단위 표기가 다를 수 있으나 판정 로직엔 무해.
+- base·reader 둘 다 스케줄 등록(증분은 스케줄 실행에서만). reader 는 base 최신 캐시를 읽어 순서 의존 없음.
+- 이 기법은 "원본 재스캔이 비쌀 뿐 집계는 캐시된 행에서 재현 가능"할 때만. 롤링 윈도우 대상 선정·
+  latest 브로드캐스트 필터는 per-row 캐시로도 안 풀린다 — 그건 "상태 조인 3-way" 로.
+
+예: `query 25890`(base, cvr 파싱로그 per-row) + `25745`(reader, 가동·안전 카드).
+raw_response 6.5KB×146만행/48h ≈ 11GB full 스캔 → 파싱 base ~90MB, 매시간 스캔 48h→~5h.
 
 ## 함정 체크리스트
 
