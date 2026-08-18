@@ -8,7 +8,11 @@ import botocore
 import mock
 from botocore.stub import Stubber
 
-from redash.query_runner.athena import Athena
+from redash.query_runner.athena import (
+    SLOW_PLANNING_WARN_MS,
+    Athena,
+    _get_execution_history,
+)
 
 
 class TestGlueSchema(TestCase):
@@ -324,3 +328,41 @@ class TestGlueSchema(TestCase):
                 {"columns": [{"name": "row_id", "type": "int"}], "name": "test1.jdbc_table"},
                 {"columns": [{"name": "row_id", "type": "int"}], "name": "test2.jdbc_table"},
             ]
+
+
+class TestExecutionHistory(TestCase):
+    @staticmethod
+    def _client(data_scanned, planning_ms):
+        client = mock.Mock()
+        client.get_query_execution.return_value = {
+            "QueryExecution": {
+                "QueryExecutionId": "exec-1",
+                "Query": "SELECT max(dt) FROM meta.campaign",
+                "Status": {"State": "SUCCEEDED"},
+                "Statistics": {
+                    "DataScannedInBytes": data_scanned,
+                    "QueryPlanningTimeInMillis": planning_ms,
+                },
+            }
+        }
+        return client
+
+    def test_zero_scan_query_is_recorded(self):
+        """Partition-listing blowups scan 0 bytes, so they must not be dropped."""
+        record = _get_execution_history(self._client(0, 120), "exec-1")
+
+        assert record is not None
+        assert record["data_scanned_bytes"] == 0
+        assert record["query_planning_time_ms"] == 120
+
+    def test_slow_planning_emits_warning(self):
+        with mock.patch("redash.query_runner.athena.logger") as mocked_logger:
+            _get_execution_history(self._client(0, SLOW_PLANNING_WARN_MS + 1), "exec-1")
+
+        assert mocked_logger.warning.called
+
+    def test_fast_planning_emits_no_warning(self):
+        with mock.patch("redash.query_runner.athena.logger") as mocked_logger:
+            _get_execution_history(self._client(1024, SLOW_PLANNING_WARN_MS), "exec-1")
+
+        assert not mocked_logger.warning.called
