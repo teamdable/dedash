@@ -32,6 +32,9 @@ except ImportError:
 
 TARGET_REPO_NAME = "dedash"
 
+# Planning time above this means partition pruning failed (a pruned query plans in <1s).
+SLOW_PLANNING_WARN_MS = 5_000
+
 # Global boto3 clients (lazy initialized)
 _athena_client = None
 _s3_client = None
@@ -72,7 +75,7 @@ def _get_execution_history(client, execution_id: str) -> dict | None:
         execution_id: Query execution ID.
 
     Returns:
-        Execution history record dict if data_scanned_bytes > 0, else None.
+        Execution history record dict, or None if the execution cannot be read.
     """
     if not execution_id:
         return None
@@ -81,16 +84,22 @@ def _get_execution_history(client, execution_id: str) -> dict | None:
         response = client.get_query_execution(QueryExecutionId=execution_id)
         execution = response.get("QueryExecution", {})
         stats = execution.get("Statistics", {})
-        data_scanned = stats.get("DataScannedInBytes", 0)
 
-        if data_scanned <= 0:
-            return None
+        planning_time_ms = stats.get("QueryPlanningTimeInMillis", 0)
+        if planning_time_ms > SLOW_PLANNING_WARN_MS:
+            logger.warning(
+                "Athena query planning is slow (%sms) - check that partition filters "
+                "are bounded on both sides: execution_id=%s",
+                planning_time_ms,
+                execution_id,
+            )
 
         record = {
             "execution_id": execution.get("QueryExecutionId"),
             "sql": execution.get("Query"),
             "execution_parameters": "[]",
-            "data_scanned_bytes": data_scanned,
+            "data_scanned_bytes": stats.get("DataScannedInBytes", 0),
+            "query_planning_time_ms": planning_time_ms,
             "submission_time": execution.get("Status", {})
             .get("SubmissionDateTime", datetime.now(timezone.utc))
             .isoformat(),
@@ -111,8 +120,7 @@ def _upload_execution_history_to_s3(athena_client, s3_client, execution_id: str)
     """Upload Athena query execution history to S3 as JSON Lines.
 
     Collects execution metadata for the given execution ID and uploads to S3
-    with 5-minute partitioning based on current UTC time. Only queries with
-    data_scanned_bytes > 0 are included.
+    with 5-minute partitioning based on current UTC time.
 
     Args:
         athena_client: Boto3 Athena client instance.
@@ -133,7 +141,7 @@ def _upload_execution_history_to_s3(athena_client, s3_client, execution_id: str)
 
     if not record:
         logger.debug(
-            "No execution history to upload (data_scanned_bytes <= 0)",
+            "No execution history to upload (execution could not be read)",
             extra={"execution_id": execution_id},
         )
         return None
