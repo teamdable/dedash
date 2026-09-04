@@ -163,6 +163,15 @@ class QueryOutdatedQueriesTest(BaseTestCase):
         self.assertNotIn(query, queries)
         self.assertNotIn(query_with_none, queries)
 
+    def test_outdated_queries_skips_archived_queries(self):
+        query = self.create_scheduled_query(interval="3600")
+        self.fake_previous_execution(query, hours=2)
+        query.is_archived = True
+        db.session.add(query)
+        db.session.flush()
+
+        self.assertNotIn(query, models.Query.outdated_queries())
+
     def test_outdated_queries_works_with_ttl_based_schedule(self):
         query = self.create_scheduled_query(interval="3600")
         self.fake_previous_execution(query, hours=2)

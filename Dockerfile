@@ -109,7 +109,7 @@ ARG POETRY_OPTIONS="--no-root --no-interaction --no-ansi"
 # for LDAP authentication, install with `ldap3` group
 # disabled by default due to GPL license conflict
 ARG install_groups="main,all_ds,dev"
-RUN /etc/poetry/bin/poetry install --only $install_groups $POETRY_OPTIONS
+RUN pip install cassandra-driver==3.29.3 impyla==0.22.0 && /etc/poetry/bin/poetry install --only $install_groups $POETRY_OPTIONS
 
 COPY --chown=redash . /app
 COPY --from=frontend-builder --chown=redash /frontend/client/dist /app/client/dist

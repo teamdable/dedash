@@ -31,6 +31,7 @@ def init_app(app):
         queries,
         setup,
         static,
+        metrics,
     )
 
     app.register_blueprint(routes)

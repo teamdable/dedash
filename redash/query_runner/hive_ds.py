@@ -124,7 +124,7 @@ class Hive(BaseSQLQueryRunner):
             columns = []
             rows = []
 
-            # DDL/DML(CREATE TABLE 등)은 결과셋이 없어 description이 None
+            # DDL/DML(CREATE TABLE 등)은 결과셋이 없음 — Hive는 description이 None
             if cursor.description is not None:
                 for column in cursor.description:
                     column_name = column[COLUMN_NAME]
@@ -138,7 +138,12 @@ class Hive(BaseSQLQueryRunner):
                         }
                     )
 
-                rows = [dict(zip(column_names, row)) for row in cursor]
+                try:
+                    rows = [dict(zip(column_names, row)) for row in cursor]
+                except TypeError:
+                    # Spark Thrift Server는 DDL에도 description을 주지만 fetch 시 columns가 None이라
+                    # pyhive _fetch_more 에서 TypeError 발생 — 실제 결과셋 없음으로 처리
+                    column_names, columns, rows = [], [], []
 
             data = {"columns": columns, "rows": rows}
             error = None

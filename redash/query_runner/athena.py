@@ -1,5 +1,7 @@
+import json
 import logging
 import os
+from datetime import datetime, timezone
 
 from redash.query_runner import (
     TYPE_BOOLEAN,
@@ -18,6 +20,7 @@ ANNOTATE_QUERY = parse_boolean(os.environ.get("ATHENA_ANNOTATE_QUERY", "true"))
 SHOW_EXTRA_SETTINGS = parse_boolean(os.environ.get("ATHENA_SHOW_EXTRA_SETTINGS", "true"))
 ASSUME_ROLE = parse_boolean(os.environ.get("ATHENA_ASSUME_ROLE", "false"))
 OPTIONAL_CREDENTIALS = parse_boolean(os.environ.get("ATHENA_OPTIONAL_CREDENTIALS", "true"))
+EXECUTION_HISTORY_S3_PATH = os.environ.get("ATHENA_EXECUTION_HISTORY_S3_PATH", "")
 
 try:
     import boto3
@@ -26,6 +29,154 @@ try:
     enabled = True
 except ImportError:
     enabled = False
+
+TARGET_REPO_NAME = "dedash"
+
+# Planning time above this means partition pruning failed (a pruned query plans in <1s).
+SLOW_PLANNING_WARN_MS = 5_000
+
+# Global boto3 clients (lazy initialized)
+_athena_client = None
+_s3_client = None
+
+
+def _get_athena_client(region: str):
+    """Get or create global Athena client."""
+    global _athena_client
+    if _athena_client is None:
+        _athena_client = boto3.client("athena", region_name=region)
+    return _athena_client
+
+
+def _get_s3_client(region: str):
+    """Get or create global S3 client."""
+    global _s3_client
+    if _s3_client is None:
+        _s3_client = boto3.client("s3", region_name=region)
+    return _s3_client
+
+
+def _get_5min_partition_key() -> str:
+    """Generate a partition key based on current UTC time, rounded to 5-minute intervals.
+
+    Returns:
+        String in format 'YYYY-MM-DD-HH-mm' where mm is rounded down to nearest 5 minutes.
+    """
+    now = datetime.now(timezone.utc)
+    minute_rounded = (now.minute // 5) * 5
+    return now.strftime(f"%Y-%m-%d-%H-{minute_rounded:02d}")
+
+
+def _get_execution_history(client, execution_id: str) -> dict | None:
+    """Get execution history for a single execution ID.
+
+    Args:
+        client: Boto3 Athena client instance.
+        execution_id: Query execution ID.
+
+    Returns:
+        Execution history record dict, or None if the execution cannot be read.
+    """
+    if not execution_id:
+        return None
+
+    try:
+        response = client.get_query_execution(QueryExecutionId=execution_id)
+        execution = response.get("QueryExecution", {})
+        stats = execution.get("Statistics", {})
+
+        planning_time_ms = stats.get("QueryPlanningTimeInMillis", 0)
+        if planning_time_ms > SLOW_PLANNING_WARN_MS:
+            logger.warning(
+                "Athena query planning is slow (%sms) - check that partition filters "
+                "are bounded on both sides: execution_id=%s",
+                planning_time_ms,
+                execution_id,
+            )
+
+        record = {
+            "execution_id": execution.get("QueryExecutionId"),
+            "sql": execution.get("Query"),
+            "execution_parameters": "[]",
+            "data_scanned_bytes": stats.get("DataScannedInBytes", 0),
+            "query_planning_time_ms": planning_time_ms,
+            "submission_time": execution.get("Status", {})
+            .get("SubmissionDateTime", datetime.now(timezone.utc))
+            .isoformat(),
+            "completion_time": execution.get("Status", {})
+            .get("CompletionDateTime", datetime.now(timezone.utc))
+            .isoformat(),
+            "state": execution.get("Status", {}).get("State"),
+            "workgroup": execution.get("WorkGroup"),
+            "repo_name": TARGET_REPO_NAME,
+        }
+        return record
+    except Exception as e:
+        logger.warning("Failed to get execution history: %s", e)
+        return None
+
+
+def _upload_execution_history_to_s3(athena_client, s3_client, execution_id: str) -> str | None:
+    """Upload Athena query execution history to S3 as JSON Lines.
+
+    Collects execution metadata for the given execution ID and uploads to S3
+    with 5-minute partitioning based on current UTC time.
+
+    Args:
+        athena_client: Boto3 Athena client instance.
+        s3_client: Boto3 S3 client instance.
+        execution_id: Query execution ID to record.
+
+    Returns:
+        S3 path where the JSONL file was uploaded, or None if no records to upload.
+    """
+    if not EXECUTION_HISTORY_S3_PATH:
+        return None
+
+    if not execution_id:
+        logger.debug("No execution ID provided, skipping history upload")
+        return None
+
+    record = _get_execution_history(athena_client, execution_id)
+
+    if not record:
+        logger.debug(
+            "No execution history to upload (execution could not be read)",
+            extra={"execution_id": execution_id},
+        )
+        return None
+
+    # Parse s3_path: "s3://bucket/prefix" -> bucket="bucket", prefix="prefix"
+    path_without_scheme = EXECUTION_HISTORY_S3_PATH.removeprefix("s3://")
+    s3_bucket, _, s3_prefix = path_without_scheme.partition("/")
+    s3_prefix = s3_prefix.rstrip("/")
+
+    partition_key = _get_5min_partition_key()
+    s3_key = f"{s3_prefix}/utc_basic_time={partition_key}/{execution_id}.jsonl"
+    s3_path = f"s3://{s3_bucket}/{s3_key}"
+
+    jsonl_content = json.dumps(record)
+
+    try:
+        s3_client.put_object(
+            Bucket=s3_bucket,
+            Key=s3_key,
+            Body=jsonl_content.encode("utf-8"),
+            ContentType="application/x-ndjson",
+        )
+
+        logger.info(
+            "Uploaded execution history to S3",
+            extra={
+                "s3_path": s3_path,
+                "execution_id": execution_id,
+                "repo_name": TARGET_REPO_NAME,
+            },
+        )
+        return s3_path
+    except Exception as e:
+        logger.warning("Failed to upload execution history to S3: %s", e)
+        return None
 
 
 _TYPE_MAPPINGS = {
@@ -289,6 +440,15 @@ class Athena(BaseQueryRunner):
                     "query_cost": price * qbytes * 10e-12,
                 },
             }
+
+            # Upload execution history to S3
+            if athena_query_id:
+                region = self.configuration["region"]
+                _upload_execution_history_to_s3(
+                    _get_athena_client(region),
+                    _get_s3_client(region),
+                    athena_query_id,
+                )
 
             error = None
         except Exception:

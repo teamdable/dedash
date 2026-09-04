@@ -594,6 +594,7 @@ class Query(ChangeTrackingMixin, TimestampMixin, BelongsToOrgMixin, db.Model):
         queries = (
             Query.query.options(joinedload(Query.latest_query_data).load_only("retrieved_at"))
             .filter(func.jsonb_typeof(Query.schedule) != "null")
+            .filter(Query.is_archived.is_(False))
             .order_by(Query.id)
             .all()
         )

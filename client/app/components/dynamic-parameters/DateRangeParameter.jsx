@@ -6,6 +6,11 @@ import DynamicDateRangePicker from "@/components/dynamic-parameters/DynamicDateR
 
 const DYNAMIC_DATE_OPTIONS = [
   {
+    name: "Today",
+    value: getDynamicDateRangeFromString("d_today"),
+    label: () => getDynamicDateRangeFromString("d_today").value()[0].format("MMM D"),
+  },
+  {
     name: "This week",
     value: getDynamicDateRangeFromString("d_this_week"),
     label: () =>
@@ -89,11 +94,6 @@ const DYNAMIC_DATE_OPTIONS = [
 ];
 
 const DYNAMIC_DATETIME_OPTIONS = [
-  {
-    name: "Today",
-    value: getDynamicDateRangeFromString("d_today"),
-    label: () => getDynamicDateRangeFromString("d_today").value()[0].format("MMM D"),
-  },
   {
     name: "Yesterday",
     value: getDynamicDateRangeFromString("d_yesterday"),

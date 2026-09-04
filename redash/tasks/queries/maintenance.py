@@ -1,6 +1,8 @@
 import logging
 import time
+from datetime import datetime, timedelta, timezone
 
+import holidays
 from rq.timeouts import JobTimeoutException
 
 from redash import models, redis_connection, settings, statsd_client
@@ -11,12 +13,28 @@ from redash.models.parameterized_query import (
 from redash.monitor import rq_job_ids
 from redash.query_runner import NotSupported
 from redash.tasks.failure_report import track_failure
-from redash.utils import json_dumps, sentry
+from redash.utils import json_dumps, matview, sentry
 from redash.worker import get_job_logger, job
 
 from .execution import enqueue_query
 
 logger = get_job_logger(__name__)
+
+KST = timezone(timedelta(hours=9))
+KR_HOLIDAYS = holidays.country_holidays("KR")
+
+
+def _is_within_business_hours():
+    if not settings.FEATURE_BUSINESS_HOURS_ONLY:
+        return True
+    now_kst = datetime.now(KST)
+    if now_kst.weekday() > 4:
+        return False
+    if now_kst.date() in KR_HOLIDAYS:
+        return False
+    if now_kst.hour < settings.BUSINESS_HOURS_START or now_kst.hour >= settings.BUSINESS_HOURS_END:
+        return False
+    return True
 
 
 def empty_schedules():
@@ -33,6 +51,9 @@ def empty_schedules():
 def _should_refresh_query(query):
     if settings.FEATURE_DISABLE_REFRESH_QUERIES:
         logger.info("Disabled refresh queries.")
+        return False
+    elif not _is_within_business_hours() and str(query.id) not in settings.BUSINESS_HOURS_EXEMPT_QUERY_IDS:
+        logger.debug("Skipping refresh of %s because it is outside business hours.", query.id)
         return False
     elif query.org.is_disabled:
         logger.debug("Skipping refresh of %s because org is disabled.", query.id)
@@ -77,7 +98,8 @@ class RefreshQueriesError(Exception):
 
 
 def _apply_auto_limit(query_text, query):
-    should_apply_auto_limit = query.options.get("apply_auto_limit", False)
+    # matview merge needs the complete result; a truncating LIMIT would poison the blob
+    should_apply_auto_limit = query.options.get("apply_auto_limit", False) and not matview.parse(query_text)
     return query.data_source.query_runner.apply_auto_limit(query_text, should_apply_auto_limit)
 
 
