@@ -1,6 +1,7 @@
 # Matview 매뉴얼 (LLM용)
 
 Redash 쿼리에 matview(증분 캐쉬)를 판정·적용할 때 이 문서만으로 작업한다.
+사람이 읽는 설명본은 `matview_manual_for_human.md` (규칙은 같고, 서술만 풀어 씀).
 설계 배경·구현 내부는 `.plans/ticketed/ML-5958-matview.md` (https://teamdable.atlassian.net/browse/ML-5958).
 
 ## 동작 모델 (판단에 필요한 만큼만)
