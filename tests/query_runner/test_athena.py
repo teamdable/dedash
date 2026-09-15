@@ -31,7 +31,11 @@ class TestGlueSchema(TestCase):
         mocked_client = self.patcher.start()
         mocked_client.return_value = client
 
+        self.env_patcher = mock.patch.dict(os.environ, {"REDASH_SCHEMAS_INCLUDE": ""})
+        self.env_patcher.start()
+
     def tearDown(self):
+        self.env_patcher.stop()
         self.patcher.stop()
 
     def test_external_table(self):
@@ -331,6 +335,23 @@ class TestGlueSchema(TestCase):
                 {"columns": [{"name": "row_id", "type": "int"}], "name": "test2.jdbc_table"},
             ]
 
+    def test_glue_skips_databases_not_included(self):
+        query_runner = Athena({"glue": True, "region": "mars-east-1"})
+
+        self.stubber.add_response("get_databases", {"DatabaseList": [{"Name": "org_log"}, {"Name": "dev_org_log"}]}, {})
+        self.stubber.add_response(
+            "get_tables",
+            {"TableList": [{"Name": "ad_click", "StorageDescriptor": {"Columns": [{"Name": "id", "Type": "int"}]}}]},
+            {"DatabaseName": "org_log"},
+        )
+
+        with self.stubber:
+            with mock.patch.dict(os.environ, {"REDASH_SCHEMAS_INCLUDE": "org_log"}):
+                schema = query_runner.get_schema()
+
+        # dev_org_log never reached get_tables: the stubber raises on an unexpected call.
+        assert schema == [{"name": "org_log.ad_click", "columns": [{"name": "id", "type": "int"}]}]
+
 
 class TestExecutionHistory(TestCase):
     @staticmethod
@@ -370,7 +391,7 @@ class TestExecutionHistory(TestCase):
         assert not mocked_logger.warning.called
 
 
-class TestSchemaAllowlist(TestGlueSchema):
+class TestSchemaInclude(TestCase):
     """REDASH_SCHEMAS_INCLUDE keeps the schema browser listing off unrelated databases."""
 
     def test_unset_lists_everything(self):
@@ -379,23 +400,6 @@ class TestSchemaAllowlist(TestGlueSchema):
             assert included_schemas_filter() == ""
 
     def test_filter_is_valid_sql_and_strips_quotes(self):
-        with mock.patch.dict(os.environ, {"REDASH_SCHEMAS_INCLUDE": " org_log , fact_daily,x' OR 1=1 --"}):
+        with mock.patch.dict(os.environ, {"REDASH_SCHEMAS_INCLUDE": " org_log , fact_daily,x\' OR 1=1 --"}):
             assert included_schemas() == ["org_log", "fact_daily", "xOR11"]
-            assert included_schemas_filter() == " AND table_schema IN ('org_log', 'fact_daily', 'xOR11')"
-
-    def test_glue_skips_databases_not_included(self):
-        query_runner = Athena({"glue": True, "region": "mars-east-1"})
-
-        self.stubber.add_response("get_databases", {"DatabaseList": [{"Name": "org_log"}, {"Name": "dev_org_log"}]}, {})
-        self.stubber.add_response(
-            "get_tables",
-            {"TableList": [{"Name": "ad_click", "StorageDescriptor": {"Columns": [{"Name": "id", "Type": "int"}]}}]},
-            {"DatabaseName": "org_log"},
-        )
-
-        with self.stubber:
-            with mock.patch.dict(os.environ, {"REDASH_SCHEMAS_INCLUDE": "org_log"}):
-                schema = query_runner.get_schema()
-
-        # dev_org_log never reached get_tables: the stubber raises on an unexpected call.
-        assert schema == [{"name": "org_log.ad_click", "columns": [{"name": "id", "type": "int"}]}]
+            assert included_schemas_filter() == " AND table_schema IN (\'org_log\', \'fact_daily\', \'xOR11\')"
