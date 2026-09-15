@@ -1,4 +1,6 @@
 import logging
+import os
+import re
 from collections import defaultdict
 from contextlib import ExitStack
 from functools import wraps
@@ -34,17 +36,28 @@ __all__ = [
     "get_query_runner",
     "import_query_runners",
     "guess_type",
+    "included_schemas",
+    "included_schemas_filter",
 ]
 
-# Valid types of columns returned in results:
-TYPE_INTEGER = "integer"
-TYPE_FLOAT = "float"
-TYPE_BOOLEAN = "boolean"
-TYPE_STRING = "string"
-TYPE_DATETIME = "datetime"
-TYPE_DATE = "date"
 
-SUPPORTED_COLUMN_TYPES = set([TYPE_INTEGER, TYPE_FLOAT, TYPE_BOOLEAN, TYPE_STRING, TYPE_DATETIME, TYPE_DATE])
+def included_schemas():
+    """Schemas get_schema() scans, from REDASH_SCHEMAS_INCLUDE (comma separated).
+
+    This only narrows the schema browser and autocomplete listing; queries can still
+    reach any schema. Empty means list everything, which on a large catalog is slow
+    and buries the useful tables.
+    """
+    names = os.environ.get("REDASH_SCHEMAS_INCLUDE", "").split(",")
+    return [name for name in (re.sub(r"[^a-zA-Z0-9_]", "", n) for n in names) if name]
+
+
+def included_schemas_filter(column="table_schema"):
+    """SQL fragment restricting `column` to included_schemas(); empty string when unset."""
+    names = included_schemas()
+    if not names:
+        return ""
+    return " AND {} IN ({})".format(column, ", ".join("'{}'".format(name) for name in names))
 
 
 def split_sql_statements(query):

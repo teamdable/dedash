@@ -12,6 +12,8 @@ from redash.query_runner import (
     TYPE_STRING,
     BaseQueryRunner,
     register,
+    included_schemas,
+    included_schemas_filter,
 )
 from redash.settings import parse_boolean
 
@@ -349,8 +351,11 @@ class Athena(BaseQueryRunner):
             **({"CatalogId": catalog_id} if catalog_id != "" else {}),
         )
 
+        allowed = included_schemas()
         for databases in databases_iterator:
             for database in databases["DatabaseList"]:
+                if allowed and database["Name"] not in allowed:
+                    continue
                 iterator = table_paginator.paginate(
                     DatabaseName=database["Name"],
                     **({"CatalogId": catalog_id} if catalog_id != "" else {}),
@@ -387,7 +392,8 @@ class Athena(BaseQueryRunner):
         SELECT table_schema, table_name, column_name, data_type
         FROM information_schema.columns
         WHERE table_schema NOT IN ('information_schema')
-        """
+        {}
+        """.format(included_schemas_filter())
 
         results, error = self.run_query(query, None)
         if error is not None:
