@@ -12,6 +12,7 @@ from redash.query_runner import (
     InterruptException,
     JobTimeoutException,
     register,
+    included_schemas_filter,
 )
 
 logger = logging.getLogger(__name__)
@@ -126,6 +127,7 @@ class Trino(BaseQueryRunner):
                 SELECT table_schema, table_name, column_name, data_type
                 FROM {catalog}.information_schema.columns
                 WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+                {included_schemas_filter()}
             """
             results, error = self.run_query(query, None)
 
